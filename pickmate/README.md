@@ -18,6 +18,8 @@ make web                # terminal 2: http://localhost:5173
 
 Open the web URL, choose **Fixture**, and start a session. Type `Find six blue cartons`, then `I picked them` and `Confirm six blue cartons`. A repeated confirmation returns the durable outcome. Use the Developer panel to set a five-second lookup delay and return a result after cancellation; correct to `Wait make that four red cartons` while the lookup runs.
 
+For a team sharing one LiveKit project, run one shared API/worker pair and point each frontend at that API with `VITE_API_ROOT`. The worker's `API_URL` must point to the same API. Multiple workers named `pickmate` connected to different local databases can receive each other's jobs; separate local stacks need separate LiveKit projects, or run one stack at a time. Each fresh installation seeds its own synthetic database; local database files and installed dependencies are not included in Git.
+
 ## Live voice setup
 
 Keep credentials in the server-side **`.env`** file on the API/worker host. In particular, put your Rime key in `RIME_API_KEY=...`; never in a frontend file or a `VITE_` variable. Configure `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`, `DEEPGRAM_API_KEY`, `GROQ_API_KEY`, and a random `WORKER_SECRET` shared by the API and worker. Generate the latter with `python3 -c 'import secrets; print(secrets.token_urlsafe(32))'` and place it only in `.env`.

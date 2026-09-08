@@ -1,0 +1,11 @@
+{
+  "observed_date": "2026-09-08",
+  "provider": "livekit",
+  "worker_status": "registered",
+  "agent_name": "pickmate",
+  "worker_host": "local macOS",
+  "livekit_region": "India South",
+  "agents_version": "1.5.17",
+  "rtc_version": "1.1.8",
+  "microphone_to_browser_audio": "not run"
+}

@@ -1,0 +1,31 @@
+{
+  "mode": "automated fixture UI; real SQLite; no audio",
+  "date": "2026-09-08T14:14:12.465Z",
+  "session_id": "c751259127b04dd9a5193b0658cc4d22",
+  "initial_stock": {
+    "blue": 40,
+    "red": 32
+  },
+  "final_stock": {
+    "blue": 34,
+    "red": 28
+  },
+  "completions": [
+    {
+      "sku": "CT-BLU",
+      "quantity": 6,
+      "task_version": 1,
+      "operation_id": "c24fd809d4bb42d682752a700e1ea56d"
+    },
+    {
+      "sku": "CT-RED",
+      "quantity": 4,
+      "task_version": 2,
+      "operation_id": "708c70a93dc0464d91ea1ac0c6e57fcf"
+    }
+  ],
+  "rejected_late_lookup": 1,
+  "duplicate_decrements": 0,
+  "reload_recovery": "passed",
+  "audio_trials": 0
+}

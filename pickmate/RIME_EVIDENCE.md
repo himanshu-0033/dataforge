@@ -15,7 +15,9 @@ The original acceptance specification is [docs/ACCEPTANCE.md](docs/ACCEPTANCE.md
 | Rime catalog | `coda` / `astra` / `eng` pairing validated against downloaded live catalog | [Dated preflight records](evidence/preflight/), [catalog snapshot](fixtures/rime-catalog-2026-09-08.json); SHA-256 `3a4146ba98584c54bab9f66e8cf9b04c8d0281a976bcf5d4efc8831e836578dd` |
 | Rime synthesis | Two real streaming clips generated with coda/astra/en | [Actual preflight](evidence/preflight/preflight-20260908T142529Z.json); [variant 1](evidence/preflight/bin-variant-1.wav), [variant 2](evidence/preflight/bin-variant-2.wav). Human listening comparison pending; these are standalone wording fixtures, not current inventory instructions |
 | LiveKit credential check | Passed: authenticated read-only room-list request | Trusted certifi CA bundle was required on this macOS Python installation. No room audio test performed |
-| Live STT and model tool calling | Not run | Complete streaming/tool adapter exercised through actual OpenAI SDK with fixture SSE; no provider success implied |
+| Groq streaming tool calling | Passed: one real request produced a validated four-red-carton operation | [Actual result](evidence/preflight/groq-live-20260908T143614Z.json); 1,340 ms for this one interpretation, not full voice latency |
+| LiveKit worker registration | Passed | Local macOS worker registered as `pickmate`; [record](evidence/preflight/worker-registration-20260908.json). Registration does not prove room audio |
+| Live STT and complete voice session | Not run | Credentials configured; real microphone, transcription and browser audio still require a session test |
 | Audible barge-in stop | Unverified; **n=0** | No real operator shared-clock recording; no p50/p95 reported |
 | End of user turn to first audio / substantive answer | Not run; **n=0** | No timing value inferred from fixture queue events |
 | STT / reasoning / TTS first byte / playback buffers | Live measurements not run | Supported worker metrics/preflight instrumentation is present |
