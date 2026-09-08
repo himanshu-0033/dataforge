@@ -19,4 +19,6 @@ Two provider-generated Rime WAV clips now exist in `preflight/bin-variant-1.wav`
 
 The older preflight records preserve earlier missing-credential states. Use the latest timestamp for configuration status; a catalogue-only preflight success is not a live gate success.
 
+Publication check: the user explicitly requested committing the populated `.env` to this public repository. `preflight/published-check/preflight-20260908T143043Z.json` correctly flags `.env` and exits nonzero. The secret-exposure gate is failing; earlier clean scans were of the local source checkout where `.env` was ignored. This does not invalidate the provider synthesis or controller test observations.
+
 Final verification: 70 backend tests passed; 6 frontend unit tests passed; 4 Playwright scenarios passed across desktop Chromium and Pixel 7 emulation; frontend production build passed. Browser tests start their own temporary SQLite/API instance on port 8001 and Vite on 5173 and have been rerun successfully. LiveKit bundle size has a Vite advisory (>500 KB); it is not a build failure.
