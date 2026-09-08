@@ -1,0 +1,9 @@
+.env
+*.env
+!.env.example
+out/
+__pycache__/
+*.pyc
+*.wav
+*.mp3
+node_modules/

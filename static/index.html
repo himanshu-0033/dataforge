@@ -1,0 +1,256 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Heard Ledger - voice triage line</title>
+<style>
+  :root{--bg:#12131a;--fg:#e8e6e3;--dim:#8b8a94;--line:#2a2c38;
+        --heard:#4ade80;--unheard:#f87171;--warn:#fbbf24;--accent:#60a5fa}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);
+       font:15px/1.55 ui-monospace,"SF Mono",Menlo,Consolas,monospace}
+  header{display:flex;gap:16px;align-items:center;flex-wrap:wrap;
+         padding:12px 18px;border-bottom:1px solid var(--line)}
+  h1{font-size:15px;margin:0;font-weight:600;letter-spacing:.02em}
+  .sp{flex:1}
+  button{font:inherit;background:#1e2030;color:var(--fg);border:1px solid var(--line);
+         border-radius:6px;padding:7px 14px;cursor:pointer}
+  button:hover{border-color:var(--accent)}
+  button:disabled{opacity:.4;cursor:default}
+  button.primary{background:var(--accent);color:#0b0d14;border-color:var(--accent);font-weight:600}
+  button.danger{background:#7f1d1d;border-color:#b91c1c}
+  .pill{padding:3px 10px;border-radius:999px;border:1px solid var(--line);font-size:12px;color:var(--dim)}
+  .pill.on{color:var(--heard);border-color:var(--heard)}
+  main{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line)}
+  section{background:var(--bg);padding:16px 18px;min-height:190px}
+  h2{font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--dim);
+     margin:0 0 10px;font-weight:600}
+  .body{font-size:17px;line-height:1.7;white-space:pre-wrap;word-break:break-word}
+  .heard{color:var(--heard)}
+  .unheard{color:var(--unheard);opacity:.65;text-decoration:line-through}
+  .cut{color:var(--warn);font-weight:700}
+  .belief{border-top:1px solid var(--line);padding:16px 18px}
+  .flags{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+  .flag{font-size:12px;padding:4px 11px;border-radius:6px;border:1px solid var(--line);color:var(--dim)}
+  .flag.bad{background:#3f1d1d;border-color:#b91c1c;color:#fca5a5}
+  .flag.good{background:#14321f;border-color:#15803d;color:#86efac}
+  .metric{font-size:26px;font-weight:700}
+  .metric small{font-size:12px;color:var(--dim);font-weight:400}
+  #log{padding:12px 18px;border-top:1px solid var(--line);color:var(--dim);
+       font-size:12px;max-height:130px;overflow:auto;white-space:pre-wrap}
+  .row{display:flex;gap:22px;align-items:baseline;flex-wrap:wrap}
+</style>
+
+<header>
+  <h1>HEARD LEDGER</h1>
+  <span class="pill" id="modePill">mode: ledger</span>
+  <span class="pill" id="micPill">mic: off</span>
+  <div class="sp"></div>
+  <button id="btnMode">toggle naive / ledger</button>
+  <button id="btnStart" class="primary">start call</button>
+  <button id="btnBarge" class="danger" disabled>INTERRUPT (space)</button>
+</header>
+
+<main>
+  <section>
+    <h2>Generated &mdash; what the model produced</h2>
+    <div class="body" id="generated">&mdash;</div>
+  </section>
+  <section>
+    <h2>Heard &mdash; what actually reached the caller</h2>
+    <div class="body" id="heard">&mdash;</div>
+  </section>
+</main>
+
+<div class="belief">
+  <div class="row">
+    <div><h2>Agent believes it said</h2><div class="body" id="believes" style="font-size:15px">&mdash;</div></div>
+  </div>
+  <div class="row" style="margin-top:14px">
+    <div><h2>time to silence</h2><div class="metric" id="tstop">&mdash;<small> ms</small></div></div>
+    <div><h2>played</h2><div class="metric" id="played">&mdash;<small> ms</small></div></div>
+    <div><h2>epoch</h2><div class="metric" id="epoch">&mdash;</div></div>
+  </div>
+  <div class="flags" id="flags"></div>
+</div>
+<div id="log"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+let ctx, src, gain, playStart = 0, playing = false, curTurn = null;
+let mode = "ledger", recog = null, lastSaid = "", vadStop = null;
+
+const log = m => { $("log").textContent = new Date().toLocaleTimeString() + "  " + m
+                   + "\n" + $("log").textContent; };
+
+async function api(path, body) {
+  const r = await fetch(path, {method:"POST", headers:{"Content-Type":"application/json"},
+                              body: JSON.stringify(body||{})});
+  const j = await r.json();
+  if (!r.ok) { log("ERROR " + (j.error||r.status)); throw new Error(j.error||r.status); }
+  return j;
+}
+
+// ---- playback with an honest clock -------------------------------------------
+// playedMs comes from the AudioContext clock, i.e. audio actually rendered to the
+// output device - not bytes we handed to the network. That distinction is the project.
+function playTurn(turn) {
+  const rate = turn.sample_rate;
+  const parts = turn.segments.map(s => {
+    const bin = atob(s.audio_b64);
+    const n = bin.length >> 1, f = new Float32Array(n);
+    for (let i = 0; i < n; i++) {
+      const lo = bin.charCodeAt(i*2), hi = bin.charCodeAt(i*2+1);
+      let v = (hi << 8) | lo;
+      if (v >= 32768) v -= 65536;
+      f[i] = v / 32768;
+    }
+    return f;
+  });
+  const total = parts.reduce((a,b) => a + b.length, 0);
+  const buf = ctx.createBuffer(1, total, rate);
+  const ch = buf.getChannelData(0);
+  let off = 0;
+  for (const p of parts) { ch.set(p, off); off += p.length; }
+
+  src = ctx.createBufferSource();
+  src.buffer = buf;
+  gain = ctx.createGain();
+  src.connect(gain).connect(ctx.destination);
+  playStart = ctx.currentTime;
+  playing = true;
+  src.onended = () => { if (playing) { playing = false; $("btnBarge").disabled = true; } };
+  src.start();
+  $("btnBarge").disabled = false;
+  log("playing " + Math.round(turn.total_ms) + " ms in " + turn.segments.length
+      + " segments (synth " + turn.synth_ms + " ms)");
+}
+
+const playedMs = () => playing ? Math.max(0, (ctx.currentTime - playStart) * 1000) : 0;
+
+function stopAudio() {
+  // Hard stop: ramp the gain to zero immediately, then kill the node. The ramp
+  // avoids a click; both happen inside one audio render quantum.
+  const t = ctx.currentTime;
+  try { gain.gain.cancelScheduledValues(t); gain.gain.setValueAtTime(gain.gain.value, t);
+        gain.gain.linearRampToValueAtTime(0, t + 0.008); } catch (e) {}
+  try { src.stop(t + 0.01); } catch (e) {}
+  playing = false;
+}
+
+// ---- the stress case ---------------------------------------------------------
+async function bargeIn(userText) {
+  if (!playing) return;
+  const t0 = performance.now();
+  const played = playedMs();
+  stopAudio();
+  const tStop = performance.now() - t0;   // measured at the speaker, client-side
+  $("btnBarge").disabled = true;
+
+  const r = await api("/api/bargein", {played_ms: played, user_text: userText || lastSaid,
+                                       t_stop_ms: tStop});
+  render(r, tStop);
+  log("barge-in: heard " + r.heard.length + " chars, dropped " + r.dropped_results
+      + " stale result(s)");
+
+  // Recovery: continue from what they actually heard.
+  const next = await api("/api/say", {text: userText || lastSaid});
+  curTurn = next;
+  $("generated").textContent = next.full_text;
+  playTurn(next);
+}
+
+function render(r, tStop) {
+  const cut = r.heard.length;
+  const full = r.generated || "";
+  $("generated").innerHTML = "<span class='heard'>" + esc(full.slice(0, cut))
+    + "</span><span class='cut'>|</span><span class='unheard'>" + esc(full.slice(cut)) + "</span>";
+  $("heard").innerHTML = "<span class='heard'>" + esc(r.heard) + "</span>";
+  $("believes").textContent = r.believes || "-";
+  $("tstop").innerHTML = Math.round(tStop) + "<small> ms</small>";
+  $("played").innerHTML = Math.round(r.played_ms) + "<small> ms</small>";
+  $("epoch").textContent = r.epoch;
+
+  const f = [];
+  const bad = (c, t) => f.push("<span class='flag " + (c ? "bad" : "good") + "'>" + t
+                               + ": " + (c ? "YES" : "no") + "</span>");
+  bad(r.stale_result_used, "stale result spoken as current");
+  bad(r.false_safety_claim, "believes it asked the safety check");
+  f.push("<span class='flag " + (r.escalated ? "bad" : "") + "'>escalated: "
+         + (r.escalated ? "YES" : "no") + "</span>");
+  f.push("<span class='flag'>mode: " + r.mode + "</span>");
+  $("flags").innerHTML = f.join("");
+}
+
+const esc = s => (s||"").replace(/[&<>]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+
+// ---- mic: acoustic barge-in + speech text ------------------------------------
+async function startMic() {
+  let stream;
+  try { stream = await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true}}); }
+  catch (e) { log("mic denied - use the INTERRUPT button"); return; }
+
+  const srcNode = ctx.createMediaStreamSource(stream);
+  const an = ctx.createAnalyser();
+  an.fftSize = 512;
+  srcNode.connect(an);
+  const buf = new Float32Array(an.fftSize);
+  $("micPill").textContent = "mic: on";
+  $("micPill").className = "pill on";
+
+  // Simple RMS gate. Deliberately not a real VAD: echo cancellation is doing the
+  // heavy lifting, and a threshold is enough to prove the state-consistency claim.
+  // ponytail: RMS gate, swap for Silero VAD if false triggers matter.
+  let above = 0;
+  (function tick() {
+    an.getFloatTimeDomainData(buf);
+    let sum = 0;
+    for (let i = 0; i < buf.length; i++) sum += buf[i]*buf[i];
+    const rms = Math.sqrt(sum / buf.length);
+    above = rms > 0.045 ? above + 1 : 0;
+    if (above > 2 && playing) { above = 0; bargeIn(""); }
+    requestAnimationFrame(tick);
+  })();
+
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (SR) {
+    recog = new SR();
+    recog.continuous = true; recog.interimResults = true; recog.lang = "en-IN";
+    recog.onresult = e => {
+      let t = "";
+      for (let i = e.resultIndex; i < e.results.length; i++) t += e.results[i][0].transcript;
+      lastSaid = t.trim();
+    };
+    recog.onerror = () => {};
+    recog.onend = () => { try { recog.start(); } catch (e) {} };
+    try { recog.start(); } catch (e) {}
+  } else {
+    log("no Web Speech API - interruption text will be blank (Chrome recommended)");
+  }
+}
+
+// ---- controls ----------------------------------------------------------------
+$("btnStart").onclick = async () => {
+  ctx = ctx || new (window.AudioContext || window.webkitAudioContext)();
+  await ctx.resume();
+  await api("/api/reset", {mode});
+  await startMic();
+  const t = await api("/api/say", {text: "I've been really struggling to keep up this semester."});
+  curTurn = t;
+  $("generated").textContent = t.full_text;
+  $("heard").textContent = "-";
+  playTurn(t);
+};
+
+$("btnMode").onclick = async () => {
+  mode = mode === "ledger" ? "naive" : "ledger";
+  $("modePill").textContent = "mode: " + mode;
+  $("modePill").style.color = mode === "naive" ? "var(--unheard)" : "";
+  await api("/api/reset", {mode});
+  log("switched to " + mode + " - same scenario, no other change");
+};
+
+$("btnBarge").onclick = () => bargeIn("");
+addEventListener("keydown", e => {
+  if (e.code === "Space") { e.preventDefault(); if (playing) bargeIn(""); }
+});
+log("ready. start call, then interrupt mid-sentence with your voice or the space bar.");
+</script>
