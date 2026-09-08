@@ -36,7 +36,7 @@ def load_env(path=".env"):
     """Minimal .env parser so we don't need python-dotenv."""
     if not os.path.exists(path):
         return
-    with open(path, encoding="utf-8") as fh:
+    with open(path, encoding="utf-8-sig") as fh:
         for line in fh:
             line = line.strip()
             if not line or line.startswith("#") or "=" not in line:

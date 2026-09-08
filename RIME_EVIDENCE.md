@@ -1,133 +1,62 @@
 # Rime evidence
 
-Pre-registered **before** the demo was recorded, per the challenge brief.
-Committed with results blank; filled in from `out/eval.csv` after the run.
+## Claim
 
----
+For a browser voice prototype, an interrupted response contributes only completed audio segments to history. Work from an obsolete turn is cancelled or fenced. A caller's finalized correction is recorded once, and the next response uses the updated preference.
 
-## 1. The hard voice claim
+Client playback timestamps are estimates; completed segments are not independent proof of acoustic reception. Partially played segments remain unconfirmed. The earlier character-interpolation implementation and its precision claims have been replaced.
 
-> When a caller interrupts a Rime-spoken turn, the agent's conversational state
-> reflects **only the speech that actually reached the caller's ear** — never the
-> speech that was generated, synthesized, or queued but cut off. Results from the
-> abandoned turn cannot re-enter the conversation as current.
+## Acceptance tests
 
-This failure mode is specific to voice. In text there is no such thing as a sentence
-the user never received, so there is nothing to diverge.
+| Test | Expected result |
+|---|---|
+| Normal response completes | Full text enters history once |
+| Interrupt in a segment | Partial segment excluded |
+| Morning lookup interrupted with evening correction | Old lookup cancelled; evening option returned |
+| Interrupt an in-flight synthesis request | Returned old audio never becomes playable |
+| Duplicate request/completion | No duplicate transcript entries |
+| Separate sessions | No shared transcript or preference |
+| Speech-provider error | Visible error; subsequent retry succeeds |
+| Risk keyword | Explicit unavailable handoff status; no false transfer claim |
 
-## 2. Why a baseline exists
+Run `python -m unittest -v test_workflow` and `python ledger.py`.
 
-"0/10 divergence" alone proves nothing — the scenario might simply never trigger the
-bug. Every trial therefore runs **twice on identical inputs**:
+## Offline A/B harness
 
-- `mode=naive` — history takes the generated text; tool results are used when they
-  arrive. This is what a standard agent does, and it is not a strawman: an unfenced
-  agent has no way to know the turn a result was computed for is gone.
-- `mode=ledger` — history takes the heard prefix; stale results are fenced by epoch.
+`python eval.py --dry -n 10 -o out/eval-dry.csv`
 
-Same barge-in offsets, same interruption text, same seed. A paired comparison.
-
-## 3. Acceptance test
-
-**Setup.** The agent reads three counselling slots and ends with the safety check
-*"Before we sort that out, are you safe right now?"*. A slot lookup is dispatched
-mid-turn with a deliberate **3.0 s** delay (`TOOL_DELAY_S`). A scripted caller
-interrupts at a pseudo-random offset in 15–75% of the turn (seed `20260908`) and
-changes the request. Two audio formats: `audio/L16` @16 kHz and `audio/PCMU` @8 kHz.
-
-**Metrics.**
-
-| Metric | Definition | Threshold (ledger) |
-|---|---|---|
-| `heard_divergence` | Agent believes it said words the caller never heard | 0 / n |
-| `stale_accepted` | A tool result from an abandoned epoch was used as current | 0 / n |
-| `false_safety_claim` | Agent believes it asked the safety check when no sound reached the caller | 0 / n |
-| `escalation_ok` | Deterministic risk classifier agrees with ground truth | n / n |
-
-The run **fails** if any ledger threshold is missed, and also fails if the *naive*
-baseline shows 0 divergence or 0 stale acceptance — a control that never reproduces
-the bug is not a control. This check is enforced in `eval.py`, not by hand.
-
-**What this test does not measure.** Time-to-silence (`T_stop`). That is a playback
-property and is only honest when measured at the speaker, so it is captured in the
-browser client and reported separately in §6. We do not synthesize a latency number
-server-side.
-
-## 4. Procedure
-
-```bash
-cp .env.example .env          # paste the Rime key
-python preflight.py           # model/voice/lang validated against the LIVE catalog
-make eval                     # 10 trials x 2 modes x 2 formats -> out/eval.csv
-```
-
-`make eval-dry` reproduces the same matrix with synthetic durations and no API key,
-to verify harness logic independently of the network.
-
-Committed artifacts: `out/eval.csv` (per-trial rows, including the leaked text in
-each divergent trial), `eval.py`, and the fixtures inline in `eval.py`.
-
-## 5. Results — live Rime audio
-
-> **PENDING.** Blocked on `RIME_API_KEY`. Fill from `out/eval.csv`.
-> Numbers must come from a real `make eval` run. Unverified performance numbers
-> receive no credit, and a dry run is not submittable evidence.
-
-| Format | Mode | n | heard_divergence | stale_accepted | false_safety_claim | escalation_ok |
-|---|---|---|---|---|---|---|
-| L16 | naive | | | | | |
-| L16 | ledger | | | | | |
-| PCMU | naive | | | | | |
-| PCMU | ledger | | | | | |
-
-Rime synthesis latency observed during the run (per segment, from `preflight.py`
-and `/api/say`):
-
-| Format | TTFB p50 | TTFB p95 |
-|---|---|---|
-| L16 @16 kHz | | |
-| PCMU @8 kHz | | |
-
-### Harness verification (not evidence)
-
-`make eval-dry`, synthetic durations, n=10, logic check only:
-
-| Mode | heard_divergence | stale_accepted | false_safety_claim | escalation_ok |
+| Mode | Divergence | Stale accepted | False safety claim | Fixture escalation agreement |
 |---|---|---|---|---|
 | naive | 10/10 | 10/10 | 10/10 | 10/10 |
 | ledger | 0/10 | 0/10 | 0/10 | 10/10 |
 
-This confirms the scenario reproduces the bug and the harness detects it. It says
-nothing about Rime audio, and is not offered as a result.
+Synthetic durations only. This is a narrow logic regression check, not listening evidence or clinical validation. The baseline is implemented in this repository, not measured against a third-party agent. Browser naive mode varies history commitment; cancellation remains enabled in both browser modes.
 
-## 6. Client-measured playback (browser)
+## Live Rime evidence: PENDING
 
-`T_stop` = barge-in detection → last audio sample rendered, from `performance.now()`
-around the Web Audio stop. Reported live in the UI and in the demo recording.
+Conversation update: OpenAI now generates replies from committed history and synthetic lookup results. Both OpenAI and Rime credentials are required. Fourteen offline regression tests pass with mocked providers. Browser speech uses sentence-sized segments up to 180 characters, leaving a larger unconfirmed portion after interruption than the older 60-character chunks. Live naturalness, microphone accuracy, and latency remain unverified.
 
-> **PENDING.** Record p50 and p95 over the demo trials. Cold and warm runs labelled
-> separately.
+Run `python preflight.py`, then `python eval.py -n 10 --formats L16,PCMU -o out/eval-live.csv` with real credentials. Record exact model, voice, language, endpoint, format, and transport from the shipped path. Listen to the output to verify decoding and intelligibility. Preserve the CSV and generated audio separately from dry runs. The live evaluator measures state logic using synthesized durations; it does not play or transcribe a real conversation.
 
-## 7. Limitations
+No live Rime performance numbers are claimed by this update.
 
-- **No SIP trunk.** We exercise the telephony *audio format* (8 kHz μ-law), not a real
-  phone transport. Browser results do not prove telephone performance.
-- **Character resolution** is exact at segment boundaries and linearly interpolated
-  within a segment (≤60 chars). Error is bounded by one segment and biased toward
-  *unheard* — we snap backwards to a whitespace boundary, so a half-spoken word counts
-  as not heard.
-- **`playedMs` is client-reported.** The browser audio clock is the most honest source
-  available to us; a hostile client could misreport it.
-- **Not streaming.** Whole turns are synthesized before playback, so time-to-first-audio
-  is worse than a streaming pipeline. Independent of the claim.
-- **Small sample.** n=10 per cell is exploratory, and labelled as such.
-- **The naive baseline is our own implementation** of standard behaviour, not a
-  third-party agent. We make its code visible (`Ledger.mode`) so the comparison can be
-  audited rather than trusted.
-- **Pronunciation control is wired but unused** — no phoneme entries shipped, because
-  we did not verify any by ear. No pronunciation claim is made.
-- **A dev stub exists** (`RIME_DEV_STUB=1`) that generates a hum instead of calling
-  Rime, used only while building the client. It is off by default, reports
-  `provider = "STUB (NOT RIME)"`, and is rendered in red in the UI. No result in this
-  document may come from a stub run — every row in §5 and §6 requires
-  `provider = "RIME"`.
+## Browser test procedure
+
+1. Run the server with real Rime enabled and the provider visibly identified as RIME.
+2. Start a fresh session. Enable the microphone and use a synthetic morning appointment request.
+3. First complete a normal interaction.
+4. Start another lookup with the configured three-second delay, interrupt, and request evening only.
+5. Save evidence of the cancelled old lookup, one finalized correction, and the final evening response.
+6. Repeat during playback and synthesis; include an early interruption and a segment-boundary interruption.
+7. Test microphone denial, unavailable recognition, synthesis failure, repeated interruptions, and session restart.
+8. Record browser/device, headphones versus speakers, provider, cold/warm and cached/uncached conditions, and all failures.
+
+The local stub browser check demonstrates the typed workflow, audio lifecycle, cancellation, and visible provider labeling only. It cannot establish speech intelligibility, microphone recognition, or real Rime behavior.
+
+## Acoustic time-to-silence: PENDING
+
+The UI reports stop scheduling overhead, not time-to-silence. Do not submit it as an acoustic latency result. For acoustic evidence, record playback output and a synchronized interruption marker through an appropriate loopback/capture arrangement, identify the last output sample, and report the measurement method, trial data, p50/p95, and device/output latency limitations. No such acoustic experiment has been run here.
+
+## Limitations
+
+Whole-turn synthesis; client-reported timing; no word alignment; basic RMS gate and English browser recognition; narrow deterministic request handling; regex risk detection; no real handoff, booking, or telephony. Dev-stub output is explicitly labeled and is not submission evidence. See README for setup and the shipped workflow.

@@ -1,322 +1,145 @@
-# Heard Ledger — a voice triage line that knows what the caller actually heard
+# Heard Ledger — interruption and recovery with Rime
 
-A student can call at 2 a.m. with no app, no login and no name. The line listens,
-and when risk appears it bridges to a human counsellor.
+A browser voice-triage **prototype** that keeps conversation history aligned with completed audio segments. When a caller interrupts, the application stops playback, invalidates old work, captures the correction, and responds to the updated request.
 
-**This is a triage and bridging tool. It is not therapy, and it does not claim to be.**
+The target user is a student exploring support options. This is not therapy or a live support service. Appointments are synthetic; no booking, telephone transport, or counsellor transfer is implemented. The interface and risk response disclose those limits.
 
----
+## The voice problem
 
-## The problem we chose
+Generated speech can run ahead of playback. If an interrupted response contains an appointment time or safety question, recording the whole response creates false conversation history. Heard Ledger commits completed segments only and leaves the interrupted segment unconfirmed. The caller may hear a brief repeat after an interruption.
 
-Not "students need mental health support" — that is already known, and on our campus
-it is already funded. The specific, measurable failure is the **threshold**:
+This is conservative segment accounting based on client timing, **not proof of what reached a person's ear**. We do not infer word timing from character counts.
 
-| Why students who need help don't go (IIT Bombay SWC survey, May 2025) | % |
-|---|---|
-| "Nobody could help me" | 53.3 |
-| "My issue isn't severe enough to justify a visit" | 51.0 |
-| Lack of trust in the system | 35.7 |
-| Ashamed or embarrassed to talk to a counsellor | 27.8 |
-| Worried about anonymity — booking requires LDAP ID | 27.3 |
-
-Half of distressed students triage themselves *out* because their problem feels too
-small to justify booking a formal appointment, with a named human, using their
-institute login. A voice line costs nothing to start. A web form does not.
-
-## Why voice is necessary
-
-Two reasons, and the second is the engineering one:
-
-1. **Voice removes the booking act.** Remove speech and this is a mental-health web
-   form — precisely the artifact half of those students already refuse.
-2. **The failure mode we solve cannot exist in text.** In a chat UI there is no such
-   thing as "a sentence the user never received". Unheard speech is purely acoustic.
-
-## The hard voice problem: heard-state consistency
-
-Standard voice agents keep conversation history from **generated** text — what the LLM
-produced and handed to TTS. That is wrong the instant a caller interrupts, because
-generation runs ahead of playback. The agent then believes it said things nobody heard.
-
-In a distress conversation that divergence is not a UX bug. If the agent believes it
-asked *"are you safe right now?"* and the caller never heard a sound, a safety step has
-been skipped while the logs say it happened.
-
-**We make the conversation's state of record what the caller actually heard.**
-
-How:
-
-1. Each turn is split into clause-sized segments, synthesized **one Rime call per
-   segment**, so the text ↔ audio alignment is exact at segment boundaries.
-2. The browser plays audio through the Web Audio clock and reports the true playback
-   position. `playedMs` comes from audio rendered to the output device — not from
-   bytes we handed to the network.
-3. On barge-in, `playedMs` maps back to a character offset. We snap **backwards** to a
-   whitespace boundary, so a partly-spoken word counts as unheard. We never claim the
-   caller heard more than they did.
-4. Only the heard prefix enters history, tagged `[interrupted mid-sentence]`.
-5. Every turn carries a monotonically increasing **epoch**. Tool results from an
-   abandoned turn are fenced: dropped, never spoken as current.
-6. Escalation runs a **deterministic classifier over the heard transcript**, outside
-   the LLM's control. The model can neither suppress nor invent it.
-
-## Architecture
-
-```mermaid
-flowchart LR
-  subgraph BROWSER["browser — static/index.html, no deps"]
-    MIC["mic<br/>getUserMedia, echo cancellation on"]
-    RMS["RMS gate<br/>above 0.045 for N frames<br/>ponytail: not a real VAD"]
-    ASR["Web Speech API<br/>interruption text, optional"]
-    CLK["Web Audio clock<br/>playedMs = ctx.currentTime - playStart"]
-    STOP["stopAudio<br/>8 ms gain ramp, then src.stop"]
-    VIEW["split-screen view<br/>heard / cut / unheard + flags"]
-  end
-
-  subgraph SERVER["server.py — stdlib ThreadingHTTPServer, port 8765"]
-    SAY["POST /api/say"]
-    BARGE["POST /api/bargein"]
-    RESET["POST /api/reset<br/>mode = ledger or naive"]
-    STATE["GET /api/state"]
-    BRAIN["brain()<br/>risk short-circuit, then Claude or scripted"]
-    TOOL["delayed tool<br/>TOOL_DELAY_S = 3s, tagged with epoch"]
-  end
-
-  subgraph LEDGER["ledger.py — pure logic, no I/O"]
-    TURN["Turn<br/>segments, char offsets, real durations"]
-    HIST["history<br/>state of record = what was HEARD"]
-    FENCE["accept_tool_result<br/>drop if result_epoch below current"]
-    RISK["risk_signal<br/>regex over heard text, outside the LLM"]
-  end
-
-  subgraph EXT["external"]
-    RIME["Rime TTS<br/>mistv2 / ritu / eng<br/>one HTTPS POST per segment"]
-    ANTH["Anthropic API<br/>optional, context = heard transcript"]
-  end
-
-  MIC --> RMS --> BARGE
-  ASR --> BARGE
-  CLK --> BARGE
-  RMS --> STOP
-  SAY --> BRAIN --> TURN
-  BRAIN -.optional.-> ANTH
-  SAY --> TOOL
-  TURN --> RIMECL["rime.py<br/>synth per segment<br/>ms = bytes / bps / rate"]
-  RIMECL --> RIME
-  RIME -- "L16 16k or PCMU 8k" --> RIMECL
-  RIMECL -- "set_timing per segment" --> TURN
-  SAY -- "segments + audio_b64 + t_start_ms" --> CLK
-  BARGE --> HIST
-  TOOL --> FENCE
-  BARGE --> RISK
-  BARGE -- "heard, unheard, believes, flags" --> VIEW
-  STATE --> VIEW
-  RESET --> LEDGER
-```
-
-**No WebSocket, deliberately.** Barge-in must stop playback at the speaker, so
-cancellation is client-side and must not wait for a server round trip. The server only
-reconciles state afterwards. That split is the honest architecture for this claim — and
-it happens to need zero dependencies.
-
-**No LiveKit, deliberately.** Its runtime cancels TTS for you, which hides the exact
-mechanism we are claiming to have built. The brief permits any orchestration stack.
-
-### What happens on a barge-in
-
-The delayed tool and the barge-in are timed to collide. That collision is the test.
-
-```mermaid
-sequenceDiagram
-  autonumber
-  participant C as caller
-  participant B as browser
-  participant S as server.py
-  participant L as ledger.py
-  participant R as Rime
-
-  C->>B: speaks
-  B->>S: POST /api/say {text}
-  S->>L: user_said(text)
-  S->>L: start_turn(reply) — epoch N
-  Note over S: dispatch slot lookup, tagged epoch N, ready in 3s
-  loop one call per clause-sized segment
-    S->>R: POST /v1/rime-tts
-    R-->>S: audio bytes
-    S->>L: set_timing(i, dur_ms from byte count)
-  end
-  S-->>B: segments, char offsets, t_start_ms, total_ms, provider
-  B->>C: playback via Web Audio
-
-  C-->>B: interrupts mid-turn
-  Note over B: RMS gate fires, stopAudio ramps gain to 0 in 8 ms
-  Note over B: playedMs read from the audio clock BEFORE stopping
-  B->>S: POST /api/bargein {played_ms, user_text, t_stop_ms}
-  S->>L: barge_in(played_ms)
-  L->>L: char_at_ms, snap back to whitespace
-  L->>L: history += heard prefix + "[interrupted mid-sentence]"
-  L->>L: epoch = N+1 — fence closes
-  Note over S: the 3s tool result now lands, stamped epoch N
-  S->>L: accept_tool_result(N, payload)
-  L-->>S: FENCED, N is below N+1, counted in dropped_results
-  S->>L: user_said(interruption)
-  S->>L: risk_signal over heard text — deterministic
-  S-->>B: heard, unheard, believes, escalated, false_safety_claim, dropped_results
-  B->>C: recovery turn, continuing from what was actually heard
-```
-
-In `mode=naive` the same run appends the **full generated** text to history and has no
-fence — that is the baseline `eval.py` measures against, not a strawman.
-
-### The heard/unheard cut
-
-Every branch biases toward *unheard*. We never claim the caller heard more than they did.
+## Workflow and architecture
 
 ```mermaid
 flowchart TD
-  A["played_ms from the audio clock"] --> B{"played_ms is 0 or less"}
-  B -- yes --> Z0["char 0 — heard nothing"]
-  B -- no --> C{"played_ms >= total_ms"}
-  C -- yes --> ZF["char = len(full_text) — heard everything"]
-  C -- no --> D["find the segment where<br/>played_ms falls inside this segment"]
-  D --> E["exact at the segment boundary"]
-  E --> F["interpolate inside the segment<br/>linear over max 60 chars"]
-  F --> G["snap BACK to the last whitespace<br/>a half-spoken word counts as unheard"]
-  G --> H["clamp: never snap past this segment's start"]
-  H --> I["heard = full_text up to cut<br/>unheard = the rest"]
-  I --> J["history gets heard only"]
-  J --> K["LLM context, risk classifier and<br/>agent_believes_said all read history"]
+  A[Start isolated session] --> B[Caller speaks or types]
+  B --> C[Save final utterance once]
+  C --> D{Risk keyword detected?}
+  D -->|Yes| E[Explain live handoff is unavailable]
+  D -->|No| F[Update appointment preference]
+  F --> G[Run cancellable synthetic lookup]
+  G --> H[Generate short Rime response]
+  E --> H
+  H --> I[Play audio while accepting caller input]
+  I -->|Completed| J[Commit full response once]
+  J --> B
+  I -->|Interrupted| K[Stop local playback immediately]
+  G -->|Interrupted| K
+  H -->|Interrupted| K
+  K --> L[Invalidate old epoch and cancel work]
+  L --> M[Commit completed segments only]
+  M --> B
 ```
 
-## Rime configuration (the judged path)
+- `server.py`: standard-library HTTP server, per-session locks and opaque session identifiers. Lookup and synthesis run on worker threads outside request locks.
+- `ledger.py`: segment accounting, history, and epoch fencing. `naive` mode deliberately commits the generated response after interruption; both browser modes still cancel obsolete work. The offline evaluator separately compares unfenced tool-result acceptance.
+- `rime.py`: sequential per-segment synthesis. Cancellation stops subsequent calls; an already-running HTTP call may finish, but its audio is discarded.
+- `static/app.js`: microphone gate, final speech recognition, serial request mutations, stale-response suppression, playback completion acknowledgements, and resource cleanup.
+- No database: sessions are in memory. End-session removes them; inactive sessions are pruned when new sessions are created. Restarting the server clears them.
 
-| Field | Value |
+## Setup (Windows PowerShell)
+
+Python 3.9+; standard library only. Natural conversation requires both OpenAI and Rime API keys. Add them to the ignored local `.env` file and restart the server.
+
+```powershell
+Copy-Item .env.example .env
+# Edit .env locally and add OPENAI_API_KEY and RIME_API_KEY.
+python preflight.py
+python server.py
+```
+
+Open http://127.0.0.1:8765. Start a session, then select **Enable microphone**, or use the message field. Speech recognition depends on browser support; Chrome is recommended for manual verification. Use headphones to reduce self-interruption. End the session to release the microphone.
+
+For local development without an API key:
+
+```powershell
+$env:RIME_DEV_STUB = '1'
+$env:BRAIN_PROVIDER = 'scripted'
+python server.py
+```
+
+The stub emits a hum, not intelligible speech, and displays `STUB (NOT RIME)`. Remove the variable before live testing: `Remove-Item Env:RIME_DEV_STUB`.
+
+## Rime configuration
+
+| Setting | Shipped value |
 |---|---|
-| Model ID | `mistv2` |
-| Speaker | `ritu` — "smart, serious Indian female voice, measured and steady" |
+| Model | `mistv2` |
+| Speaker | `ritu` |
 | Language | `eng` |
 | Endpoint | `https://users.rime.ai/v1/rime-tts` |
-| Audio format | `audio/L16` @ 16000 Hz (browser), `audio/PCMU` @ 8000 Hz (telephony) |
-| Transport | HTTPS POST, one call per segment |
-| Speed control | `speedAlpha`, used on the recovery re-speak |
-| Pronunciation | `phonemizeBetweenBrackets` — wired in `rime.py`, see limitations |
+| Browser format | `audio/L16`, 16000 Hz, mono; decoded as little-endian PCM |
+| Transport | HTTPS POST, one complete request per segment |
+| Additional evaluation format | `audio/PCMU`, 8000 Hz; not a telephone connection |
+| Delivery controls | Default speed; pronunciation dictionary empty |
 
-**Why `mistv2` specifically.** We pulled the live catalog rather than trusting docs:
+These are configured values, not a fresh live compatibility claim. Run preflight with the exact demo credentials and inspect/listen to the resulting audio. The organizer's own preflight is also required. OpenAI now generates replies using committed history. The default model is `gpt-4.1-mini-2025-04-14`, configurable through `LLM_MODEL`. Explicit `BRAIN_PROVIDER=scripted` is available for offline tests; missing keys never silently select it.
 
-| Model | Latency | Hindi voices | Inline pronunciation control |
-|---|---|---|---|
-| `coda` | sub-100 ms | 3 | no |
-| `mistv3` | ~37 ms p50 | 0 | no |
-| `mistv2` | ~175 ms median | 0 | **yes — only model** |
-| `arcana` | — | 3 | no |
+Third-party services: OpenAI receives the committed text transcript for conversation, Rime provides spoken output, and browser speech recognition may use a browser-vendor service. Use synthetic scenarios only.
 
-Hindi and pronunciation control are mutually exclusive. We resolved it by not needing
-Hindi: `mistv2` carries Indian-accented **English** voices (`ritu`, `hawk`, `ironwood`,
-`rohan`). We pay ~140 ms of time-to-first-audio versus `mistv3`, which is the right
-trade — our claim is cancellation and state consistency, not time-to-first-audio, and
-the two are independent.
+## Acceptance scenario
 
-Rime provides text-to-speech. We own input, ASR, reasoning, orchestration, state,
-transport, tools, safety and evaluation.
+1. Ask for a morning appointment.
+2. During the three-second lookup, interrupt and say or type: “Actually, evening only.”
+3. Observe `tool_cancelled` for the original epoch and a new evening lookup.
+4. The response offers six in the evening; it does not offer the obsolete morning result.
+5. Repeat while audio is playing. Check completed segments, discarded speech, and the next response.
+6. Let one response finish. Verify it enters history exactly once.
 
-## Setup
+Change `TOOL_DELAY_S` in `.env` if needed. A request may be interrupted during lookup, synthesis, or playback. Capture the final spoken recovery as evidence, not just an event counter.
 
-```bash
-cp .env.example .env       # paste your Rime key into .env
-python preflight.py        # gate: key, live catalog, one real synth in both formats
-python server.py           # http://localhost:8765
+## Verification
+
+```powershell
+python -m unittest -v test_workflow test_conversation
+python ledger.py
+python eval.py --dry -n 10 -o out/eval-dry.csv
+# Live Rime duration-based evaluation (requires a key):
+python eval.py -n 10 --formats L16,PCMU -o out/eval-live.csv
 ```
 
-Python 3.9+. **No pip install** — standard library only. Chrome recommended (Web Speech
-API for interruption text; the acoustic barge-in works in any browser).
+The regression tests cover completion, cancellation, corrections, stale synthesis, duplicate requests, isolation, and failure recovery. The offline A/B harness is a logic check. Even the live duration-based evaluator does not test microphone transcription or acoustic silence. See `RIME_EVIDENCE.md` for the evidence boundary and manual procedure.
 
-```bash
-make test       # pure-logic self-check of the ledger
-make eval-dry   # full A/B matrix, synthetic durations, no API key
-make eval       # acceptance test against live Rime audio -> out/eval.csv
+## API
+
+Natural-conversation configuration in the local `.env`:
+
+```dotenv
+OPENAI_API_KEY=
+LLM_MODEL=gpt-4.1-mini-2025-04-14
+BRAIN_PROVIDER=openai
+RIME_API_KEY=
+RIME_DEV_STUB=0
 ```
 
-### Dev stub (not the judged path)
+Fill both keys and restart the server. Clear development environment overrides before live testing. Start a session, enable the microphone, and say hello. The UI identifies conversation and speech providers separately. `WORKER_SECRET` and `LIVEKIT_*` belong to a different worker stack; they do not authenticate this app's OpenAI requests.
 
-`RIME_DEV_STUB=1 python server.py` replaces Rime with a locally generated hum of the
-correct duration, so the playback clock, barge-in and split-screen view can be worked
-on without a key or API spend.
+`brain.py` uses the [OpenAI Responses API](https://developers.openai.com/api/docs/guides/text) with `store=false` and the last 40 committed history messages. It does not chain abandoned generated responses through a previous response ID. The exact configured snapshot is listed in the [model documentation](https://developers.openai.com/api/docs/models/gpt-4.1-mini). `test_conversation.py` tests history, lookup grounding, errors, and cancellation using mocked providers; these tests do not prove live conversation quality.
 
-It is **off unless that variable is set explicitly**, it reports
-`provider = "STUB (NOT RIME)"`, and the UI renders that label in red. Every demo and
-every measured result uses `provider = "RIME"`. The provider is returned on every
-`/api/say` response so the active engine is observable at all times, per the brief's
-requirement that fallback behaviour be disclosed.
+Create a session with `POST /api/reset {mode}`. Other operations require its `session_id`.
 
-## Third-party services
-
-| Service | Used for | Required |
-|---|---|---|
-| Rime | **all spoken output** | yes |
-| Browser Web Speech API | interruption transcript | no — degrades to blank text |
-| Anthropic API | optional LLM brain | no — scripted brain by default |
-
-## Failure behaviour
-
-| Condition | Behaviour |
+| Endpoint | Input or purpose |
 |---|---|
-| `RIME_API_KEY` missing/invalid | `/api/say` returns 503 with an actionable message; page still loads |
-| Rime request fails | `RimeError` surfaced to the client; no silent fallback provider |
-| Mic denied | Acoustic barge-in disabled; space bar / INTERRUPT button still work |
-| No Web Speech API | Barge-in still fires; interruption text is blank |
-| LLM unreachable | Falls back to the scripted brain and logs `brain_fallback` |
-| Tool result arrives late | Fenced by epoch; counted in `dropped_results` |
+| `POST /api/say` | `text`, unique `request_id`; starts work asynchronously |
+| `GET /api/state?session_id=...` | Status, ready audio, transcript, events, errors |
+| `POST /api/bargein` | `epoch`, `played_ms`; cancellation only, no caller text |
+| `POST /api/complete` | `epoch`; idempotent playback acknowledgement |
+| `POST /api/end` | Cancels work and removes session |
 
-There is **no fallback speech provider**. Rime is the only path to audio, so the active
-provider is unambiguous.
+## Failure behavior and limits
 
-## Known limitations
-
-Stated plainly, because undisclosed limits are worse than disclosed ones:
-
-- **No real telephony.** We test the telephony *audio path* (`audio/PCMU`, 8 kHz μ-law)
-  but not a SIP trunk, jitter, packet loss, or carrier codecs. Browser results do not
-  prove telephone performance.
-- **Character resolution.** The ms→character mapping is exact at segment boundaries and
-  linearly interpolated inside a segment (~60 chars). Error is bounded by one segment
-  and biased toward *unheard*.
-- **`playedMs` trusts the client.** It comes from the browser's audio clock. That is the
-  most honest source available to us, but a hostile client could lie.
-- **Not streaming.** Whole turns are synthesized before playback, so time-to-first-audio
-  is worse than a streaming pipeline. Our claim is unaffected; a production build would
-  stream.
-- **English only.** Hinglish ASR carries a documented 30–50% relative WER increase on
-  code-switched speech; we did not attempt it.
-- **Pronunciation control is wired but unused.** `PRONOUNCE` in `rime.py` is empty on
-  purpose: an unverified phoneme sounds worse than the default, and we did not have time
-  to listen to enough candidates to ship any.
-- **The RMS barge-in gate is not a real VAD.** Echo cancellation does the heavy lifting.
-  Marked in-code for a Silero swap.
-- **Scripted brain by default.** Deterministic behaviour is a feature for a distress
-  line and for reproducible judging, not a stand-in for reasoning.
-
-## Safety
-
-- Never described to the caller as a counsellor, therapist, or AI therapy. Illinois'
-  Wellness and Oversight for Psychological Resources Act (Aug 2025) bars AI from
-  providing therapy without licensed clinician oversight; we treat that as the design
-  floor, not a jurisdictional question.
-- Escalation is deterministic and outside the model's control, so multi-turn prompt
-  injection cannot talk the line out of escalating.
-- All fixtures are synthetic. No real student audio was recorded, stored, or used.
+- Missing key or synthesis failure: asynchronous `error` state shown in the UI; no silent speech-provider fallback. The caller can retry.
+- No microphone/recognition: typed input remains available. Incomplete recognition is not submitted as a finished correction.
+- Detected risk: persistent `unavailable_demo` handoff status; no false connection announcement. The regex is incomplete and not clinically validated.
+- OpenAI conversation and lookup intent are model-generated and can be wrong. Lookup supports only synthetic appointments tomorrow. Offline scripted mode supports narrow test phrases.
+- The RMS gate is not a production VAD. Noise and speaker echo can trigger it.
+- Whole responses are synthesized before playback; no streaming latency claim is made. Sentence-sized segments, up to 180 characters, preserve more phrasing but enlarge the unconfirmed portion on interruption. Naturalness requires live listening tests.
+- The UI's stop scheduling time measures JavaScript scheduling overhead, **not acoustic time to silence**. Played duration subtracts reported output latency but remains an estimate. Audio output, mute state, device latency, and recognition accuracy require manual testing.
+- A hostile client could lie about playback. The local server is not hardened for public deployment.
+- No real appointments, human connection, multilingual workflow, or phone transport. PCMU format tests do not prove telephone performance.
 
 ## Repository
 
-| File | Purpose |
-|---|---|
-| `ledger.py` | The claim. Heard/unheard mapping, epoch fencing, risk classifier. Self-checking. |
-| `rime.py` | Rime client — per-segment synthesis, exact byte→ms accounting |
-| `server.py` | Agent loop, delayed tool, reconciliation |
-| `static/index.html` | Mic, playback clock, split-screen generated-vs-heard view |
-| `eval.py` | Paired A/B acceptance test vs a naive baseline |
-| `preflight.py` | Config gate — run first |
-| `Makefile` | `preflight` / `dev` / `test` / `eval` / `eval-dry` |
-| `.env.example` | Copy to `.env`, paste your Rime key |
-| `RIME_EVIDENCE.md` | Required deliverable — the claim, test, procedure, results, limitations |
-| `research-brief.tex` | Background research and build plan |
+`server.py`, `ledger.py`, `rime.py`, and `static/` implement the prototype. `test_workflow.py` contains regression tests. `eval.py` contains synthetic fixtures and A/B checks. `preflight.py` validates the configured Rime path. `RIME_EVIDENCE.md` tracks submission evidence. `research-brief.tex` is a historical planning document; its earlier phone/booking/LLM plans are not implemented capabilities.

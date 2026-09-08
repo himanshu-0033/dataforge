@@ -168,6 +168,8 @@ class RimeClient:
         except urllib.error.HTTPError as exc:
             detail = exc.read()[:200].decode("utf-8", "replace")
             raise RimeError("Rime HTTP %d: %s" % (exc.code, detail))
+        except (urllib.error.URLError, TimeoutError, OSError) as exc:
+            raise RimeError("Rime connection failed; check connectivity and retry") from exc
 
         if not audio:
             raise RimeError("Rime returned empty audio for: %r" % text[:60])
