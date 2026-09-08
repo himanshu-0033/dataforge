@@ -1,0 +1,28 @@
+{
+  "session_id": "c751259127b04dd9a5193b0658cc4d22",
+  "database": "data/pickmate.sqlite",
+  "completions": [
+    {
+      "sku": "CT-BLU",
+      "quantity": 6,
+      "task_version": 1,
+      "operation_id": "c24fd809d4bb42d682752a700e1ea56d"
+    },
+    {
+      "sku": "CT-RED",
+      "quantity": 4,
+      "task_version": 2,
+      "operation_id": "708c70a93dc0464d91ea1ac0c6e57fcf"
+    }
+  ],
+  "stock": [
+    {
+      "sku": "CT-BLU",
+      "available": 34
+    },
+    {
+      "sku": "CT-RED",
+      "available": 28
+    }
+  ]
+}

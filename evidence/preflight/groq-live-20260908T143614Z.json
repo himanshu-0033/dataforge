@@ -1,0 +1,10 @@
+{
+  "checked_at": "2026-09-08T14:36:12.271647+00:00",
+  "provider": "groq",
+  "input": "Find four red cartons",
+  "endpoint": "https://api.groq.com/openai/v1",
+  "model": "openai/gpt-oss-120b",
+  "streaming_tool_call": "validated",
+  "duration_ms": 1340.3962499869522,
+  "passed": true
+}

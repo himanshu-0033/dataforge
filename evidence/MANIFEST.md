@@ -10,6 +10,10 @@ All inventory and input text in committed tests/evaluation files are synthetic. 
 | `stress/trial-NN/snapshot.json` | Final session, stock, and durable receipts |
 | `stress/summary.json` / `report.json` | Aggregate fixture results, explicit empty audio strata |
 | `preflight/preflight-*.json` | Dated actual catalog/configuration/secret scan checks, missing credentials and live gate status |
+| `preflight/groq-live-20260908T143614Z.json` | One real Groq streaming tool call and its actual duration; no voice latency claim |
+| `preflight/worker-registration-20260908.json` | Observed successful LiveKit worker registration; no room audio claim |
+| `browser/walkthrough-20260908/` | Automated fixture browser walkthrough, screenshots, events and database proof |
+| `recordings/fixture-walkthrough-20260908/fixture-ui-walkthrough.webm` | Silent automated UI video; not a real-operator voice demo |
 | `preflight-live.log` | Strict live preflight diagnostic with missing names, no secrets |
 | `browser/pickmate-session.png` | Visually checked running fixture UI; screenshot does not prove audio behavior |
 | `browser/playwright.json` | Actual final browser run: four passed, zero failed, skipped, or flaky; desktop Chromium and Pixel 7 emulation |
