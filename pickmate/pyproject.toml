@@ -1,27 +1,38 @@
 [project]
-name = "pickmate"
+name = "heard"
 version = "0.1.0"
-description = "Interruption-safe voice inventory picking with Rime"
+description = "Heard: interruption-aware voice and text conversations"
 requires-python = ">=3.11,<3.14"
 dependencies = [
-  "fastapi>=0.115,<1", "uvicorn[standard]>=0.34,<1",
-  "pydantic-settings>=2.8,<3", "httpx>=0.28,<1",
-  "livekit-agents[rime,deepgram,silero,openai]>=1.5,<1.6",
-  "livekit-api>=1.0,<2", "python-dotenv>=1,<2"
+  "fastapi>=0.115,<1",
+  "uvicorn[standard]>=0.34,<1",
+  "pydantic-settings>=2.8,<3",
+  "httpx>=0.28,<1",
+  "livekit-agents[rime,deepgram,silero]>=1.5,<1.6",
+  "livekit-api>=1.0,<2",
+  "openai>=2.36,<4",
+  "python-dotenv>=1,<2",
+  "google-auth[requests]>=2.40,<3",
 ]
+
 [dependency-groups]
 dev = ["pytest>=8,<10", "pytest-asyncio>=1,<2", "ruff>=0.11,<1"]
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
 [tool.hatch.build.targets.wheel]
-packages = ["backend/pickmate", "backend/counselor"]
+packages = ["backend/counselor"]
+
 [tool.pytest.ini_options]
 pythonpath = ["backend"]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+
 [tool.ruff]
 line-length = 110
 target-version = "py311"
+
 [tool.ruff.lint]
 select = ["E4", "E7", "E9", "F", "I"]

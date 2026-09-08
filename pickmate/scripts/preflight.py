@@ -17,8 +17,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "backend"))
-from pickmate.config import DEFAULT_LLM_MODEL, GROQ_BASE_URL  # noqa: E402
-from pickmate.voice.providers import CATALOG_URL, RimeConfig, error_category, validate_catalog  # noqa: E402
+from counselor.config import GROQ_BASE_URL, Settings  # noqa: E402
+from counselor.conversation import Conversation  # noqa: E402
+from counselor.providers import CATALOG_URL, RimeConfig, error_category, validate_catalog  # noqa: E402
 
 REQUIRED = (
     "RIME_API_KEY",
@@ -40,7 +41,11 @@ def scan_secrets():
         check=True,
     )
     findings = []
-    secrets = [os.getenv(k) for k in REQUIRED if "KEY" in k or "SECRET" in k]
+    secrets = [
+        os.getenv(k)
+        for k in (*REQUIRED, "GOOGLE_CREDENTIALS_BASE64")
+        if ("KEY" in k or "SECRET" in k or "CREDENTIALS" in k)
+    ]
     for name in result.stdout.decode().split("\0"):
         path = ROOT / name
         if not name or not path.is_file() or path.stat().st_size > 2_000_000:
@@ -68,7 +73,7 @@ async def synthesis(config, output):
         provider = config.make_tts(http_session=http)
         try:
             for index, text in enumerate(
-                ("Pick four red cartons from bin B-04.", "Pick four red cartons. Bin B, zero four."), 1
+                ("Hi, I'm Heard. What's on your mind?", "Take your time. We can talk this through."), 1
             ):
                 started = time.monotonic()
                 first = None
@@ -85,7 +90,7 @@ async def synthesis(config, output):
                             frames.extend(event.frame.data.cast("B"))
                 if not frames:
                     raise RuntimeError("Rime returned no audio")
-                path = output / f"bin-variant-{index}.wav"
+                path = output / f"voice-sample-{index}.wav"
                 with wave.open(str(path), "wb") as wav:
                     wav.setnchannels(1)
                     wav.setsampwidth(2)
@@ -106,25 +111,19 @@ async def synthesis(config, output):
 
 
 async def llm_smoke():
-    from pickmate.domain.language import resolve
-    from pickmate.storage.seed import inventory
-    from pickmate.voice.interpreter import Interpreter
-
-    model = os.getenv("LLM_MODEL", DEFAULT_LLM_MODEL)
-    adapter = Interpreter(os.environ["GROQ_API_KEY"], model)
-    items = [item.model_dump() for item in inventory()]
+    settings = Settings(_env_file=None)
+    adapter = Conversation(settings)
     started = time.monotonic()
     try:
-        async with asyncio.timeout(15):
-            proposal = await adapter.interpret("Find four red cartons", None, items)
-        item = resolve(proposal.query or "", items)
-        if proposal.action != "request" or proposal.quantity != 4 or not item or item["sku"] != "CT-RED":
-            raise ValueError("Live model did not return the expected complete structured operation")
+        async with asyncio.timeout(60):
+            await adapter.reply(
+                [{"role": "user", "content": "I'm feeling overwhelmed by exams. Can we talk?"}]
+            )
         return {
-            "provider": "groq",
-            "endpoint": GROQ_BASE_URL,
-            "model": model,
-            "streaming_tool_call": "validated",
+            "provider": adapter.provider,
+            "endpoint": "Vertex Gemini" if adapter.provider == "vertex" else GROQ_BASE_URL,
+            "model": adapter.model,
+            "streaming_response": "completed",
             "duration_ms": (time.monotonic() - started) * 1000,
         }
     finally:
@@ -140,7 +139,7 @@ def main():
     parser.add_argument(
         "--offline", action="store_true", help="Skip network; catalog and synthesis remain unverified"
     )
-    parser.add_argument("--output", type=Path, default=ROOT / "evidence" / "preflight")
+    parser.add_argument("--output", type=Path, default=ROOT / ".cache" / "preflight")
     args = parser.parse_args()
     if args.live and args.offline:
         parser.error("--live cannot be combined with --offline")
@@ -151,19 +150,19 @@ def main():
     except ImportError:
         pass
     args.output.mkdir(parents=True, exist_ok=True)
+    settings = Settings(_env_file=None)
     record = {
         "checked_at": datetime.now(timezone.utc).isoformat(),
         "mode": "live" if args.live else "preflight",
-        "missing_credentials": [key for key in REQUIRED if not os.getenv(key)],
+        "missing_credentials": settings.missing(),
         "catalog": "not run",
         "synthesis": "not run",
         "llm_streaming": "not run",
         "llm_configuration": {
-            "provider": "groq",
-            "model": os.getenv("LLM_MODEL", DEFAULT_LLM_MODEL),
-            "endpoint": GROQ_BASE_URL,
+            "provider": settings.counselor_provider,
+            "model": settings.vertex_model if settings.counselor_provider == "vertex" else settings.llm_model,
+            "endpoint": "Vertex Gemini" if settings.counselor_provider == "vertex" else GROQ_BASE_URL,
         },
-        "organizer_checker": "not supplied; pending",
         "versions": {
             p: version(p)
             for p in (
@@ -171,7 +170,6 @@ def main():
                 "livekit-plugins-rime",
                 "livekit-plugins-deepgram",
                 "livekit-plugins-silero",
-                "livekit-plugins-openai",
                 "openai",
             )
         },
@@ -197,7 +195,7 @@ def main():
             }
         if os.getenv("RIME_API_KEY") and not args.offline:
             record["synthesis"] = asyncio.run(synthesis(config, args.output))
-        if os.getenv("GROQ_API_KEY") and not args.offline:
+        if not settings.conversation_missing() and not args.offline:
             record["llm_streaming"] = asyncio.run(llm_smoke())
         if args.live and (record["missing_credentials"] or record["synthesis"] == "not run"):
             failed = True

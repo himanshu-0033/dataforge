@@ -11,7 +11,7 @@ if ($Restart) {
     $processes = @(Get-CimInstance Win32_Process)
     $launchers = @($processes | Where-Object {
         $_.ExecutablePath -eq $pythonExe -and
-        $_.CommandLine -match '-m (uvicorn (pickmate.api.app|counselor.app):app|pickmate.voice.worker|counselor.worker)'
+        $_.CommandLine -match '-m (uvicorn counselor.app:app|counselor.worker)'
     })
     $stopIds = [System.Collections.Generic.HashSet[int]]::new()
     foreach ($launcher in $launchers) { [void]$stopIds.Add($launcher.ProcessId) }
@@ -41,4 +41,4 @@ if (-not (Get-NetTCPConnection -State Listen -LocalPort 5173 -ErrorAction Silent
     Start-Process -FilePath $nodeExe -ArgumentList @($viteScript,'--host','0.0.0.0','--port','5173','--strictPort') -WorkingDirectory (Join-Path $serviceRoot 'web') -WindowStyle Hidden -RedirectStandardOutput (Join-Path $logRoot "counselor-web-$logStamp.out.log") -RedirectStandardError (Join-Path $logRoot "counselor-web-$logStamp.err.log") | Out-Null
 }
 Write-Output "Heard started: API launcher $($apiProcess.Id), voice launcher $($workerProcess.Id)."
-Write-Output 'Open http://localhost:5173. Voice needs the configured LiveKit, Deepgram, Rime, and Groq services.'
+Write-Output 'Open http://localhost:5173. Conversation uses the configured Vertex or Groq provider; voice uses LiveKit, Deepgram, and Rime.'

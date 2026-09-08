@@ -1,23 +1,41 @@
-# Windows: use `make` from Git Bash, or run the python commands directly.
-PY ?= python
+UV ?= uv
+PROJECT := pickmate
 
-.PHONY: preflight dev eval eval-dry test clean
+.PHONY: install api web worker test test-web test-browser check preflight preflight-live
 
-preflight:            ## gate: key + live catalog + one real synth in both formats
-	$(PY) preflight.py
+# Some Python installations need an explicit CA bundle for voice providers.
+api worker preflight-live: export SSL_CERT_FILE ?= $(shell $(UV) run --frozen --directory $(PROJECT) python -m certifi)
 
-dev: ## run the agent at http://localhost:8765
-	$(PY) server.py
+install:
+	$(UV) sync --frozen --directory $(PROJECT)
+	npm ci --prefix $(PROJECT)/web
 
-eval: ## acceptance test against live Rime audio -> out/eval.csv
-	$(PY) eval.py -n 10 --formats L16,PCMU -o out/eval-live.csv
+api:
+	$(UV) run --frozen --directory $(PROJECT) uvicorn counselor.app:app --host 127.0.0.1 --port 8000
 
-eval-dry: ## same matrix, synthetic durations, no API key
-	$(PY) eval.py --dry -n 10 -o out/eval-dry.csv
+worker:
+	$(UV) run --frozen --directory $(PROJECT) python -m counselor.worker dev
 
-test: ## pure-logic self-check of the heard ledger
-	$(PY) ledger.py
-	$(PY) -m unittest -v test_workflow test_conversation
+web:
+	npm run dev --prefix $(PROJECT)/web
 
-clean:
-	rm -rf out __pycache__
+test:
+	$(UV) run --frozen --directory $(PROJECT) python -m pytest -q
+
+test-web:
+	npm test --prefix $(PROJECT)/web
+	npm run build --prefix $(PROJECT)/web
+
+test-browser:
+	npm run test:e2e --prefix $(PROJECT)/web
+
+check:
+	$(UV) run --frozen --directory $(PROJECT) ruff check backend tests scripts web/tests
+	$(UV) run --frozen --directory $(PROJECT) ruff format --check backend tests scripts web/tests
+	npm run typecheck --prefix $(PROJECT)/web
+
+preflight:
+	$(UV) run --frozen --directory $(PROJECT) python scripts/preflight.py --offline
+
+preflight-live:
+	$(UV) run --frozen --directory $(PROJECT) python scripts/preflight.py --live

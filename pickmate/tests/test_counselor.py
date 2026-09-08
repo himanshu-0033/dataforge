@@ -4,15 +4,15 @@ import time
 import httpx
 import pytest
 from counselor.app import create_app
+from counselor.config import Settings
 from counselor.sessions import Sessions
-from pickmate.config import Settings
 
 
 class FakeConversation:
     def __init__(self):
         self.histories = []
 
-    async def reply(self, history):
+    async def reply(self, history, **kwargs):
         self.histories.append(history)
         return "We can take this one step at a time. What feels hardest today?"
 
@@ -64,7 +64,6 @@ async def test_open_conversation_ownership_context_and_duplicate_inputs(counselo
     first = (await client.get(route, headers=auth)).json()
     assert len(first["messages"]) == 3
     assert first["messages"][-1]["status"] == "completed"
-    assert first["task"] is None and first["inventory"] == []
     await client.post(
         route + "/turn", headers=auth, json={"text": "Mostly the pressure to do well", "event_id": "followup"}
     )
@@ -114,7 +113,7 @@ async def test_late_generation_cannot_override_a_correction_or_ended_session():
     release = asyncio.Event()
 
     class Slow(FakeConversation):
-        async def reply(self, history):
+        async def reply(self, history, **kwargs):
             if history[-1]["content"] == "old concern":
                 started.set()
                 try:
@@ -204,7 +203,7 @@ async def test_failed_generation_can_be_retried_without_duplicate_user_message()
     class Flaky(FakeConversation):
         calls = 0
 
-        async def reply(self, history):
+        async def reply(self, history, **kwargs):
             self.calls += 1
             if self.calls == 1:
                 raise TimeoutError()

@@ -11,6 +11,9 @@ from uuid import uuid4
 
 from fastapi import HTTPException
 
+from .config import ROOM_PREFIX
+from .dialogue import is_voice_fragment
+
 
 def utc():
     return datetime.now(timezone.utc).isoformat()
@@ -31,17 +34,21 @@ class Session:
     ended: bool = False
     resolving: bool = False
     user_speaking: bool = False
+    awaiting_continuation: bool = False
     resume_query: bool = False
     error: str | None = None
     speech: dict | None = None
     messages: list = field(default_factory=list)
+    support: str = "explore"
+    focus: str = ""
+    draft: str = ""
     inputs: set = field(default_factory=set)
     provider: dict = field(default_factory=lambda: {"name": "rime", "status": "awaiting_worker"})
     job: asyncio.Task | None = None
 
     @property
     def room(self):
-        return f"heard-{self.session_id}"
+        return f"{ROOM_PREFIX}{self.session_id}"
 
 
 class Sessions:
@@ -73,7 +80,7 @@ class Sessions:
         self.sessions[session.session_id] = session
         self.say(
             session,
-            "Hi, I'm Heard, an AI here to listen and help you talk things through. What's on your mind today?",
+            "Hi, I'm Heard. I'm an AI here to listen. Take a moment to settle in; there's no rush to start.",
         )
         return session, token
 
@@ -89,6 +96,7 @@ class Sessions:
             session.job.cancel()
         session.job = None
         session.resolving = False
+        session.draft = ""
         if session.speech and session.speech["status"] in ("queued", "playing"):
             session.speech["status"] = "interrupted"
             for message in session.messages:
@@ -111,8 +119,6 @@ class Sessions:
             response_epoch=session.response_epoch,
             text=text,
             status=status,
-            task_id=None,
-            task_version=None,
         )
         session.messages.append(dict(id=rid, role="assistant", text=text, utc=utc(), status=status))
         session.messages = session.messages[-200:]
@@ -123,9 +129,9 @@ class Sessions:
             dict(role=m["role"], content=m["text"])
             for m in session.messages
             if m["role"] == "user" or m["status"] == "completed"
-        ][-40:]
+        ]
 
-    def turn(self, session, text, event_id):
+    def turn(self, session, text, event_id, *, source="text"):
         if session.ended:
             raise HTTPException(409, "This conversation has ended.")
         if event_id in session.inputs:
@@ -140,20 +146,32 @@ class Sessions:
         session.touched = time.monotonic()
         session.messages.append(dict(id=event_id, role="user", text=text, utc=utc(), status="completed"))
         session.messages = session.messages[-200:]
-        self.generate(session)
+        session.awaiting_continuation = source == "voice" and is_voice_fragment(text)
+        if not session.awaiting_continuation:
+            self.generate(session)
 
     def generate(self, session):
         session.resolving = True
+        session.draft = ""
         session.revision += 1
-        session.job = self.spawn(self._reply(session, session.response_epoch, self.history(session)))
+        preferences = dict(support=session.support, mode=session.mode, focus=session.focus)
+        session.job = self.spawn(
+            self._reply(session, session.response_epoch, self.history(session), preferences)
+        )
 
-    async def _reply(self, session, epoch, history):
+    async def _reply(self, session, epoch, history, preferences):
+        def on_delta(text):
+            if not session.ended and epoch == session.response_epoch:
+                session.draft += text
+                session.revision += 1
+
         try:
-            async with asyncio.timeout(30):
-                reply = await self.conversation.reply(history)
+            async with asyncio.timeout(60):
+                reply = await self.conversation.reply(history, **preferences, on_delta=on_delta)
             if session.ended or epoch != session.response_epoch:
                 return
             session.resolving = False
+            session.draft = ""
             session.resume_query = False
             self.say(session, reply)
         except asyncio.CancelledError:
@@ -161,8 +179,29 @@ class Sessions:
         except Exception:
             if epoch == session.response_epoch and not session.ended:
                 session.resolving = False
+                session.draft = ""
                 session.error = "The reply couldn't be completed. Please retry your last message."
                 session.revision += 1
+
+    def preferences(self, session, *, support=None, focus=None):
+        if session.ended:
+            raise HTTPException(409, "This conversation has ended.")
+        changed = (support is not None and support != session.support) or (
+            focus is not None and focus != session.focus
+        )
+        if not changed:
+            return
+        pending = session.resolving
+        if pending:
+            self.cancel(session)
+        if support is not None:
+            session.support = support
+        if focus is not None:
+            session.focus = focus
+        session.touched = time.monotonic()
+        session.revision += 1
+        if pending:
+            self.generate(session)
 
     def onset(self, session):
         if session.ended or session.paused:
@@ -176,6 +215,8 @@ class Sessions:
             return
         session.user_speaking = False
         session.revision += 1
+        if session.awaiting_continuation:
+            return
         if session.resume_query:
             session.resume_query = False
             self.generate(session)
@@ -202,10 +243,13 @@ class Sessions:
             session.ended = True
             session.messages.clear()
             session.inputs.clear()
+            session.focus = ""
+            session.support = "explore"
             session.speech = None
             session.error = None
             session.resume_query = False
             session.user_speaking = False
+            session.awaiting_continuation = False
             return
         if session.ended:
             raise HTTPException(409, "This conversation has ended.")
@@ -236,7 +280,12 @@ class Sessions:
                 self.generate(session)
         elif action == "recover":
             session.error = None
-            if session.speech and session.speech["status"] == "interrupted" and not session.resolving:
+            if (
+                session.speech
+                and session.speech["status"] == "interrupted"
+                and not session.resolving
+                and not session.awaiting_continuation
+            ):
                 text = session.speech["text"]
                 self.cancel(session)
                 self.say(session, text)
@@ -258,15 +307,17 @@ class Sessions:
             paused=session.paused,
             resolving=session.resolving or session.user_speaking,
             thinking=session.resolving,
+            draft=session.draft,
+            support=session.support,
+            focus=session.focus,
             user_speaking=session.user_speaking,
+            awaiting_continuation=session.awaiting_continuation,
             response_epoch=session.response_epoch,
             worker_epoch=session.worker_epoch,
             speech=session.speech,
             provider=provider,
             messages=session.messages,
             error=session.error,
-            task=None,
-            inventory=[],
         )
 
     def expire(self):

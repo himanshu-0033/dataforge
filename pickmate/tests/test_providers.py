@@ -1,10 +1,35 @@
 import asyncio
+import runpy
+import sys
 from types import SimpleNamespace
 from urllib.parse import parse_qs, urlsplit
 
 import pytest
-from pickmate.voice.providers import RimeConfig, validate_catalog
-from pickmate.voice.worker import Bridge, eligible_speech, inventory_keyterms
+from counselor.providers import RimeConfig, validate_catalog
+from counselor.worker import Bridge, eligible_speech
+
+
+def test_worker_cli_reads_local_env_before_constructing_the_server(monkeypatch, tmp_path):
+    from livekit import agents
+
+    values = {
+        "LIVEKIT_URL": "wss://fixture.example.invalid",
+        "LIVEKIT_API_KEY": "fixture-key",
+        "LIVEKIT_API_SECRET": "fixture-secret",
+    }
+    for name in values:
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / ".env").write_text("\n".join(f"{key}={value}" for key, value in values.items()))
+    seen = []
+    monkeypatch.setattr(
+        agents.cli,
+        "run_app",
+        lambda server: seen.append((server._ws_url, server._api_key, server._api_secret)),
+    )
+    monkeypatch.delitem(sys.modules, "counselor.worker")
+    runpy.run_module("counselor.worker", run_name="__main__")
+    assert seen == [tuple(values.values())]
 
 
 def test_catalog_checks_exact_model_language_voice_pairing():
@@ -58,29 +83,20 @@ async def test_actual_plugin_builds_explicit_wire_configuration():
 def snapshot():
     return {
         "response_epoch": 2,
-        "task": {"task_id": "new", "task_version": 3},
         "speech": {
             "response_id": "r2",
             "response_epoch": 2,
-            "task_id": "new",
-            "task_version": 3,
             "status": "queued",
         },
     }
 
 
-@pytest.mark.parametrize(
-    "change", ["epoch", "version", "identity", "paused", "resolving", "ended", "completed"]
-)
+@pytest.mark.parametrize("change", ["epoch", "paused", "resolving", "ended", "completed"])
 def test_scheduler_rejects_obsolete_speech(change):
     state = snapshot()
     assert eligible_speech(state)["response_id"] == "r2"
     if change == "epoch":
         state["response_epoch"] += 1
-    elif change == "version":
-        state["task"]["task_version"] += 1
-    elif change == "identity":
-        state["task"]["task_id"] = "replacement"
     elif change == "completed":
         state["speech"]["status"] = "completed"
     else:
@@ -88,18 +104,9 @@ def test_scheduler_rejects_obsolete_speech(change):
     assert eligible_speech(state) is None
 
 
-def test_controller_can_explicitly_allow_current_pause_acknowledgment():
-    state = snapshot()
-    state["paused"] = True
-    state["speech"]["allow_while_paused"] = True
-    assert eligible_speech(state)
-    state["response_epoch"] += 1
-    assert eligible_speech(state) is None
-
-
 @pytest.mark.asyncio
 async def test_false_interruption_is_idempotent_and_does_not_override_transcript():
-    bridge = Bridge("s", "pickmate-s", None)
+    bridge = Bridge("s", "heard-s", None)
     bridge.input_resolved = False
     bridge.false_interruption()
     bridge.false_interruption()
@@ -112,7 +119,7 @@ async def test_false_interruption_is_idempotent_and_does_not_override_transcript
 
 @pytest.mark.asyncio
 async def test_onset_is_processed_before_final_turn_and_fences_inflight_control():
-    bridge = Bridge("s", "pickmate-s", None)
+    bridge = Bridge("s", "heard-s", None)
     seen = []
     gate = asyncio.Event()
 
@@ -123,7 +130,7 @@ async def test_onset_is_processed_before_final_turn_and_fences_inflight_control(
 
     bridge.call = call
     onset = bridge.submit("onset", {})
-    turn = bridge.submit("turn", {"text": "four red cartons"})
+    turn = bridge.submit("turn", {"text": "I feel overwhelmed"})
     runner = asyncio.create_task(bridge.controls())
     await asyncio.sleep(0)
     assert seen == ["onset"]
@@ -139,7 +146,7 @@ async def test_onset_is_processed_before_final_turn_and_fences_inflight_control(
 
 @pytest.mark.asyncio
 async def test_late_playback_callback_retains_original_response_identity():
-    bridge = Bridge("s", "pickmate-s", None)
+    bridge = Bridge("s", "heard-s", None)
     bridge.current = "new-response"
     events = []
 
@@ -161,7 +168,7 @@ async def test_late_playback_callback_retains_original_response_identity():
 
 @pytest.mark.asyncio
 async def test_recovery_clears_failed_provider_before_asking_controller_to_speak():
-    bridge = Bridge("s", "pickmate-s", None)
+    bridge = Bridge("s", "heard-s", None)
     calls = []
     status = "failed"
 
@@ -180,7 +187,7 @@ async def test_recovery_clears_failed_provider_before_asking_controller_to_speak
 
 @pytest.mark.asyncio
 async def test_api_failure_exits_control_and_poll_without_false_rime_failure():
-    bridge = Bridge("s", "pickmate-s", None)
+    bridge = Bridge("s", "heard-s", None)
     interruptions = []
     bridge.session = SimpleNamespace(interrupt=lambda **kwargs: interruptions.append(kwargs))
     calls = []
@@ -192,7 +199,7 @@ async def test_api_failure_exits_control_and_poll_without_false_rime_failure():
 
     bridge.call = call
     onset = bridge.submit("onset", {})
-    turn = bridge.submit("turn", {"text": "four red cartons"})
+    turn = bridge.submit("turn", {"text": "I feel overwhelmed"})
     await asyncio.wait_for(bridge.controls(), timeout=1)
     await asyncio.wait_for(bridge.poll(), timeout=1)
     await bridge.failure_task
@@ -200,32 +207,7 @@ async def test_api_failure_exits_control_and_poll_without_false_rime_failure():
     assert bridge.closed and bridge.failed
     assert bridge.pending_controls == 0
     assert interruptions == [{"force": True}]
-    assert [route for route, _ in calls] == ["onset", "metrics"]
-    assert calls[-1][1]["data"]["source"] == "api_transport"
-
-
-@pytest.mark.asyncio
-async def test_delivery_estimate_uses_sdk_handle_identity_after_response_replacement():
-    from livekit.agents import llm
-    from livekit.agents.voice.speech_handle import SpeechHandle
-
-    bridge = Bridge("s", "pickmate-s", None)
-    bridge.current = "new-response"
-    handle = SpeechHandle.create()
-    item = llm.ChatMessage(role="assistant", content=["Bin B"], interrupted=True)
-    # Mirrors SDK _say_task ordering: handle item is recorded before session event.
-    handle._item_added([item])
-    bridge.handles[handle.id] = (handle, {"response_id": "old-response", "response_epoch": 2})
-    bridge.delivery_estimate(item)
-    route, data, _ = bridge.queue.get_nowait()
-    assert route == "metrics"
-    assert data["data"]["response_id"] == "old-response"
-    assert data["data"]["text"] == "Bin B"
-    assert data["data"]["interrupted"]
-    assert data["data"]["trusted"] is False
-    unknown = llm.ChatMessage(role="assistant", content=["Unbound message"])
-    bridge.delivery_estimate(unknown)
-    assert bridge.queue.empty()
+    assert [route for route, _ in calls] == ["onset"]
 
 
 @pytest.mark.asyncio
@@ -240,24 +222,11 @@ async def test_worker_lease_is_attached_to_control_and_snapshot_requests(monkeyp
         return httpx.Response(200, json={"worker_epoch": 7})
 
     async with httpx.AsyncClient(transport=httpx.MockTransport(respond)) as http:
-        bridge = Bridge("s", "pickmate-s", http)
+        bridge = Bridge("s", "heard-s", http)
         lease = await bridge.call("claim", {"worker_id": "job-fixture"})
         bridge.worker_epoch = lease["worker_epoch"]
         await bridge.call("snapshot")
         await bridge.call("onset", {})
     assert "x-worker-epoch" not in headers[0]
     assert all(header["x-worker-epoch"] == "7" for header in headers[1:])
-    assert all(header["x-room-name"] == "pickmate-s" for header in headers)
-
-
-def test_stt_keyterms_derive_from_inventory_names_and_aliases_only():
-    terms = inventory_keyterms(
-        {
-            "inventory": [
-                {"name": "Work gloves", "aliases": ["gloves", "Work gloves"]},
-                {"name": "Blue cartons", "aliases": ["blue boxes"]},
-            ]
-        }
-    )
-    assert terms == ["Work gloves", "gloves", "Blue cartons", "blue boxes"]
-    assert "nitrile gloves" not in terms
+    assert all(header["x-room-name"] == "heard-s" for header in headers)

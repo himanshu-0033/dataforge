@@ -1,24 +1,29 @@
-import type { Mode, Snapshot } from './state';
-export class ApiError extends Error { constructor(public status:number, public body?:unknown){super(detailFrom(body))} }
-export function detailFrom(value:unknown, fallback='Request failed') { if(value instanceof ApiError)return detailFrom(value.body,value.message);return typeof value==='object' && value && 'detail' in value && typeof value.detail==='string' ? value.detail : fallback; }
-const API_ROOT=(import.meta.env.VITE_API_ROOT as string|undefined)?.replace(/\/$/,'') ?? '';
-function createEventId(){
-  if(crypto.randomUUID)return crypto.randomUUID();
-  return Array.from(crypto.getRandomValues(new Uint8Array(16)),byte=>byte.toString(16).padStart(2,'0')).join('');
-}
-async function request<T>(path:string, init:RequestInit={}, token?:string):Promise<T>{
-  const headers=new Headers(init.headers); headers.set('Content-Type','application/json'); if(token) headers.set('Authorization',`Bearer ${token}`);
-  let response:Response; try { response=await fetch(`${API_ROOT}${path}`,{...init,headers}); } catch { throw new ApiError(0,{detail:'Cannot reach the session service. Check that the API is running.'}); }
-  if(!response.ok){let body:unknown;try{body=await response.json()}catch{}throw new ApiError(response.status,body ?? {detail:`Request failed (${response.status})`})}
-  return response.status===204 ? undefined as T : response.json();
-}
-export const api={
- health:()=>request<{mode:string;live_ready:boolean;missing_config:string[];demo_enabled:boolean}>('/api/health'),
- create:(mode:Mode)=>request<{session_id:string;token:string;snapshot:Snapshot}>('/api/sessions',{method:'POST',body:JSON.stringify({mode})}),
- snapshot:(id:string,token:string)=>request<Snapshot>(`/api/sessions/${id}`,{},token),
- turn:(id:string,token:string,text:string,event_id=createEventId())=>request<Snapshot>(`/api/sessions/${id}/turn`,{method:'POST',body:JSON.stringify({text,event_id})},token),
- control:(id:string,token:string,action:string)=>request<Snapshot>(`/api/sessions/${id}/control`,{method:'POST',body:JSON.stringify({action})},token),
- faults:(id:string,token:string,body:unknown)=>request<Snapshot>(`/api/sessions/${id}/faults`,{method:'POST',body:JSON.stringify(body)},token),
- playback:(id:string,token:string,response_id:string,status:string)=>request<Snapshot>(`/api/sessions/${id}/playback`,{method:'POST',body:JSON.stringify({response_id,status})},token),
- liveToken:(id:string,token:string)=>request<{url:string;token:string;room:string}>(`/api/sessions/${id}/token`,{method:'POST'},token)
+export type Mode = 'live' | 'text';
+export type SupportStyle = 'listen' | 'explore' | 'steps';
+export type Message = { id: string; role: 'user' | 'assistant'; text: string; utc: string; status: string };
+export type Credential = { id: string; token: string };
+export type Snapshot = {
+  session_id: string; revision: number; mode: Mode; ended: boolean; paused: boolean;
+  thinking: boolean; user_speaking: boolean; error: string | null;
+  awaiting_continuation: boolean;
+  support: SupportStyle; focus: string; draft: string;
+  messages: Message[]; speech: { response_id: string; status: string; text: string } | null;
+  provider: { status: string }; worker_epoch: number;
 };
+export type Health = { product: string; live_ready: boolean; conversation_ready: boolean; conversation_provider: 'groq' | 'vertex' };
+export class RequestError extends Error {
+  constructor(public status: number, message: string) { super(message); }
+}
+export async function request<T>(path: string, body?: unknown, credential?: Credential): Promise<T> {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (credential) headers.Authorization = `Bearer ${credential.token}`;
+  let response: Response;
+  try {
+    response = await fetch(`/api${path}`, { method: body === undefined ? 'GET' : 'POST', headers,
+      body: body === undefined ? undefined : JSON.stringify(body), signal: AbortSignal.timeout(15000) });
+  } catch { throw new RequestError(0, 'The connection was interrupted. Please try again.'); }
+  const data = await response.json();
+  if (!response.ok) throw new RequestError(response.status, typeof data.detail === 'string' ? data.detail : 'That request could not be completed.');
+  return data;
+}
+export const route = (credential: Credential, suffix = '') => `/sessions/${credential.id}${suffix}`;

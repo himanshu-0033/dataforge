@@ -10,12 +10,13 @@ from typing import Literal
 
 from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from pickmate.api.app import Metric, Playback, Provider, ProviderError, WorkerClaim
-from pickmate.config import Settings
-from pickmate.voice.dispatch import Dispatcher
 from pydantic import BaseModel, Field
 
+from .config import Settings
+from .context import SupportStyle
 from .conversation import Conversation
+from .dispatch import Dispatcher
+from .protocol import Playback, Provider, ProviderError, WorkerClaim
 from .sessions import Sessions
 
 
@@ -32,10 +33,15 @@ class Control(BaseModel):
     action: Literal["pause", "resume", "repeat", "interrupt", "retry", "recover", "end"]
 
 
+class Preferences(BaseModel):
+    support: SupportStyle | None = None
+    focus: str | None = Field(default=None, max_length=600)
+
+
 def create_app(settings=None, sessions=None, dispatcher=None):
     cfg = settings or Settings()
-    store = sessions or Sessions(Conversation(cfg) if cfg.groq_api_key else None)
-    dispatch = dispatcher or Dispatcher(cfg, agent_name="heard")
+    store = sessions or Sessions(Conversation(cfg) if not cfg.conversation_missing() else None)
+    dispatch = dispatcher or Dispatcher(cfg)
 
     async def expire():
         while True:
@@ -90,6 +96,8 @@ def create_app(settings=None, sessions=None, dispatcher=None):
             mode="live",
             live_ready=not cfg.missing(),
             conversation_ready=store.conversation is not None,
+            conversation_provider=cfg.counselor_provider,
+            conversation_model=cfg.vertex_model if cfg.counselor_provider == "vertex" else cfg.llm_model,
             missing_config=cfg.missing(),
             transcript_retention="memory_only_until_end_or_one_hour_idle",
         )
@@ -119,6 +127,14 @@ def create_app(settings=None, sessions=None, dispatcher=None):
     async def control(sid: str, body: Control, authorization: str | None = Header(default=None)):
         session = store.authorize(sid, authorization)
         store.control(session, body.action)
+        return store.snapshot(session)
+
+    @app.post("/api/sessions/{sid}/preferences")
+    async def preferences(sid: str, body: Preferences, authorization: str | None = Header(default=None)):
+        session = store.authorize(sid, authorization)
+        store.preferences(
+            session, support=body.support, focus=body.focus.strip() if body.focus is not None else None
+        )
         return store.snapshot(session)
 
     @app.post("/api/sessions/{sid}/token")
@@ -171,7 +187,7 @@ def create_app(settings=None, sessions=None, dispatcher=None):
     async def internal_turn(sid: str, body: Turn, request: Request):
         session = worker(sid, request)
         if body.text.strip() and not session.paused:
-            store.turn(session, body.text.strip(), body.event_id)
+            store.turn(session, body.text.strip(), body.event_id, source="voice")
         return {"accepted": True}
 
     @app.post("/api/internal/sessions/{sid}/onset")
@@ -199,12 +215,6 @@ def create_app(settings=None, sessions=None, dispatcher=None):
     @app.post("/api/internal/sessions/{sid}/recover")
     async def recover(sid: str, request: Request):
         store.control(worker(sid, request), "recover")
-        return {"accepted": True}
-
-    @app.post("/api/internal/sessions/{sid}/metrics")
-    async def metrics(sid: str, body: Metric, request: Request):
-        worker(sid, request)
-        # Do not persist provider transcripts or diagnostics containing conversation text.
         return {"accepted": True}
 
     @app.post("/api/internal/sessions/{sid}/error")
