@@ -59,7 +59,7 @@ Python dependencies are pinned transitively in `uv.lock`; JavaScript dependencie
 make test
 make test-web
 cd web && npx playwright install chromium && cd ..
-make test-browser       # API must be running; runner starts/reuses Vite
+make test-browser       # starts isolated test API on 8001 and Vite on 5173; keep these ports free
 make check
 make stress            # 30 fixture trials with isolated real databases
 make report

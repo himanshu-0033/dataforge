@@ -10,8 +10,8 @@ The original acceptance specification is [docs/ACCEPTANCE.md](docs/ACCEPTANCE.md
 |---|---|---|
 | Controller stress corpus | 30/30 passed; zero obsolete queued instructions; zero duplicate writes | Fixture text input and actual isolated SQLite databases. [Rows](evidence/stress/trials.jsonl), [summary](evidence/stress/summary.json), individual event traces and final snapshots in each trial directory |
 | Five-second delay | Two configured trials, including one that ignores cancellation and actually returns late | Trials 01 and 02; a cancelled silent lookup does not count as an audible interruption trial |
-| Backend / SDK boundary tests | See the final JUnit count in [pytest.xml](evidence/pytest.xml) | Domain, API ownership/tokens, race/recovery, provider configuration, real SDK parsing with fixture transport, measurement exclusions |
-| Browser workflow | Desktop Chromium and mobile Chromium fixture scenarios | See [manifest](evidence/MANIFEST.md) and saved browser results; UI tests do not prove audible stopping |
+| Backend / SDK boundary tests | 68 passed; [pytest.xml](evidence/pytest.xml) | Domain, API ownership/tokens, race/recovery, provider configuration, real SDK parsing with fixture transport, measurement exclusions |
+| Browser workflow | 4/4 passed: desktop Chromium and mobile Chromium fixture scenarios; 6/6 frontend unit tests; production build passed | See [manifest](evidence/MANIFEST.md) and saved browser results; UI tests do not prove audible stopping |
 | Rime catalog | `coda` / `astra` / `eng` pairing validated against downloaded live catalog | [Dated preflight records](evidence/preflight/), [catalog snapshot](fixtures/rime-catalog-2026-09-08.json); SHA-256 `3a4146ba98584c54bab9f66e8cf9b04c8d0281a976bcf5d4efc8831e836578dd` |
 | Rime synthesis | Not run; no Rime key configured during these runs | Strict live preflight fails, with missing variable names only |
 | Live STT and model tool calling | Not run | Complete streaming/tool adapter exercised through actual OpenAI SDK with fixture SSE; no provider success implied |
