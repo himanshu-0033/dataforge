@@ -56,7 +56,8 @@ export default function App() {
     try {
       const next = await api.health();
       setHealth(next);
-      if (!next.live_ready) setMode('fixture');
+      if (next.live_ready && (next.mode === 'live' || !next.demo_enabled)) setMode('live');
+      else if (!next.live_ready) setMode('fixture');
     } catch (error) { setHealthError(errorText(error)); }
     finally { setHealthBusy(false); }
   }, []);

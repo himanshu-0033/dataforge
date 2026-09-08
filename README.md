@@ -1,4 +1,10 @@
-# Heard Ledger — interruption and recovery with Rime
+# Heard — AI support
+
+The main app is now the **virtual counselor conversation experience**, using Groq for replies and LiveKit, Deepgram, and Rime for voice. Start it with `.\start-counselor.ps1 -Restart` and open **http://localhost:5173**. It supports natural conversation, a readable transcript, and typed input while voice is paused or unavailable. See [counselor setup and behavior](docs/COUNSELOR.md).
+
+The documentation below describes the earlier root browser prototype.
+
+## Earlier Heard Ledger prototype
 
 A browser voice-triage **prototype** that keeps conversation history aligned with completed audio segments. When a caller interrupts, the application stops playback, invalidates old work, captures the correction, and responds to the updated request.
 

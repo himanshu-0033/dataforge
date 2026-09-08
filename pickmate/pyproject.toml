@@ -15,7 +15,7 @@ dev = ["pytest>=8,<10", "pytest-asyncio>=1,<2", "ruff>=0.11,<1"]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
-packages = ["backend/pickmate"]
+packages = ["backend/pickmate", "backend/counselor"]
 [tool.pytest.ini_options]
 pythonpath = ["backend"]
 asyncio_mode = "auto"

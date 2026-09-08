@@ -1,6 +1,6 @@
 # Counselor assistant merge plan
 
-Status: proposal for user review; implementation has not started.
+Status: the conversation-first counselor now runs through `start-counselor.ps1` at `http://localhost:5173`; see [current setup and behavior](docs/COUNSELOR.md). It uses the configured Groq provider, supports live voice and typed conversation, and does not implement appointment booking. The broader appointment-request workflow below remains a proposal.
 
 Verified against checkout `ec21a2e` on 2026-09-08.
 
