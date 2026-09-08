@@ -128,6 +128,18 @@ make eval-dry   # full A/B matrix, synthetic durations, no API key
 make eval       # acceptance test against live Rime audio -> out/eval.csv
 ```
 
+### Dev stub (not the judged path)
+
+`RIME_DEV_STUB=1 python server.py` replaces Rime with a locally generated hum of the
+correct duration, so the playback clock, barge-in and split-screen view can be worked
+on without a key or API spend.
+
+It is **off unless that variable is set explicitly**, it reports
+`provider = "STUB (NOT RIME)"`, and the UI renders that label in red. Every demo and
+every measured result uses `provider = "RIME"`. The provider is returned on every
+`/api/say` response so the active engine is observable at all times, per the brief's
+requirement that fallback behaviour be disclosed.
+
 ## Third-party services
 
 | Service | Used for | Required |
@@ -196,4 +208,5 @@ Stated plainly, because undisclosed limits are worse than disclosed ones:
 | `eval.py` | Paired A/B acceptance test vs a naive baseline |
 | `preflight.py` | Config gate — run first |
 | `RIME_EVIDENCE.md` | The claim, test, procedure, results, limitations |
+| `ARCHITECTURE.md` | Mermaid diagrams — context, barge-in flow, heard/unheard cut, eval |
 | `research-brief.tex` | Background research and build plan |
