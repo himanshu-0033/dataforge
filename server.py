@@ -1,258 +1,265 @@
-"""Voice agent server.  Run: make dev   (or python server.py)  ->  http://localhost:8765
-
-Deliberately stdlib-only HTTP, no WebSocket. Rationale: barge-in must stop playback
-at the SPEAKER, so cancellation is client-side and must not wait for a server round
-trip. The server is only asked to reconcile state afterwards. That split is the
-honest architecture for this claim, and it happens to need no dependencies.
-
-Endpoints
-  GET  /                 the client
-  POST /api/reset        new session; body {mode: "ledger"|"naive"}
-  POST /api/say          body {text} -> agent turn, synthesized, with segment timings
-  POST /api/bargein      body {played_ms, user_text} -> heard/unheard reconciliation
-  GET  /api/state        transcript + what the agent believes it said
-"""
+"""Local voice prototype: isolated sessions, asynchronous work, epoch-fenced playback."""
 import base64
 import json
+import math
 import os
+from pathlib import Path
+import re
 import threading
 import time
+import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from urllib.parse import urlparse, parse_qs
 
 import ledger
 import rime
 from preflight import load_env
 
-PORT = int(os.environ.get("PORT", "8765"))
-TOOL_DELAY_S = float(os.environ.get("TOOL_DELAY_S", "3.0"))  # the deliberate stress
-
-SAFETY_CHECK = "are you safe right now"
-
-_lock = threading.Lock()
-STATE = {
-    "led": None,
-    "turn": None,
-    "client": None,
-    "mode": "ledger",
-    "fmt": "L16",
-    "tool": None,       # {"epoch":int, "ready_at":float, "payload":dict}
-    "events": [],
-}
+ROOT = Path(__file__).resolve().parent
+load_env(ROOT / '.env')
+PORT = int(os.environ.get('PORT', '8765'))
+TOOL_DELAY_S = float(os.environ.get('TOOL_DELAY_S', '3'))
+SESSIONS = {}
+SESSIONS_LOCK = threading.Lock()
 
 
-def log(kind, detail):
-    STATE["events"].append({"t": round(time.time() % 10000, 2), "kind": kind, "detail": detail})
-    STATE["events"][:] = STATE["events"][-40:]
+class Session:
+    def __init__(self, mode='ledger', client=None):
+        self.id = uuid.uuid4().hex
+        self.lock = threading.RLock()
+        self.led = ledger.Ledger(mode)
+        self.client = client
+        self.cancel = threading.Event()
+        self.status = 'listening'
+        self.audio = None
+        self.events = []
+        self.error = None
+        self.preference = None
+        self.handoff = 'not_requested'
+        self.last_cut = None
+        self.requests = set()
+        self.touched = time.monotonic()
 
+    def log(self, kind, detail):
+        self.events.append({'kind': kind, 'detail': detail, 't': round(time.monotonic(), 3)})
+        self.events = self.events[-80:]
 
-def brain(user_text, led):
-    """Decide what the agent says next.
+    def snapshot(self):
+        with self.lock:
+            self.touched = time.monotonic()
+            return dict(session_id=self.id, epoch=self.led.epoch, mode=self.led.mode,
+                        status=self.status, audio=self.audio, error=self.error,
+                        transcript=self.led.transcript(), believes=self.led.agent_believes_said(),
+                        events=list(self.events), dropped_results=len(self.led.dropped_results),
+                        handoff=self.handoff, last_cut=self.last_cut,
+                        provider=self.client.provider if self.client else 'RIME (not connected)')
 
-    Default is a scripted, deterministic brain: for a distress line, predictable
-    behaviour beats a clever one, and it keeps the demo reproducible for judges.
-    Set ANTHROPIC_API_KEY to route through Claude instead.
-    """
-    heard_ctx = led.transcript()
-    if ledger.risk_signal(user_text):
-        return ("I'm really glad you told me that. You matter, and I want to get "
-                "you to a person right now. I'm connecting you to the on-call "
-                "counsellor - stay with me on the line.")
+    def interrupt(self, epoch, played_ms=0):
+        with self.lock:
+            if epoch != self.led.epoch:
+                return False
+            self.cancel.set()
+            turn = self.led.turn
+            if turn:
+                # An unfinished synthesis has no playable audio.
+                position = played_ms if self.audio else 0
+                self.last_cut = dict(generated=turn.full_text, **self.led.barge_in(position))
+            else:
+                self.led.epoch += 1
+            self.audio = None
+            self.status = 'listening'
+            self.log('interrupt', 'Old work invalidated; waiting for final caller transcript')
+            return True
 
-    key = os.environ.get("ANTHROPIC_API_KEY", "").strip()
-    if key:
+    def submit(self, text, request_id):
+        with self.lock:
+            if request_id in self.requests:
+                return self.led.epoch
+            if self.status not in ('listening', 'error'):
+                raise ValueError('Interrupt or finish the current turn before submitting')
+            self.requests.add(request_id)
+            self.led.user_said(text)
+            self.led.epoch += 1
+            epoch = self.led.epoch
+            self.cancel = threading.Event()
+            cancel = self.cancel
+            self.error = None
+            self.audio = None
+            self.status = 'working'
+            # A detected risk stays active for this session. This is a limited
+            # keyword gate, not a clinically validated classifier.
+            if ledger.risk_signal(text):
+                self.handoff = 'unavailable_demo'
+            matches = list(re.finditer(r'\b(morning|afternoon|evening)\b', text, re.I))
+            if matches:
+                self.preference = matches[-1].group().lower()
+            preference = self.preference
+            self.log('user', text)
+            threading.Thread(target=self._work, args=(epoch, cancel, text, preference), daemon=True).start()
+            return epoch
+
+    def _work(self, epoch, cancel, text, preference):
         try:
-            return _claude(user_text, heard_ctx, key)
+            if self.handoff != 'not_requested':
+                reply = ('Thank you for telling me. This demo cannot connect you to a counsellor. '
+                         'Please contact a trusted person or local emergency support if you are in immediate danger.')
+            elif re.search(r"\b(cancel|stop)\b|don.t (?:want to )?book", text, re.I):
+                reply = 'The demo lookup is cancelled. Nothing has been booked.'
+            elif preference or re.search(r'\b(slot|appointment|book|counselling)\b', text, re.I):
+                with self.lock:
+                    self.log('tool_dispatch', 'Synthetic slot lookup; %.1fs delay; epoch %d' % (TOOL_DELAY_S, epoch))
+                if cancel.wait(TOOL_DELAY_S):
+                    with self.lock:
+                        self.log('tool_cancelled', 'Lookup cancelled for epoch %d' % epoch)
+                    return
+                with self.lock:
+                    if not self.led.accept_tool_result(epoch, {'preference': preference}):
+                        self.log('tool_fenced', 'Obsolete lookup result rejected')
+                        return
+                slots = {'morning': 'ten in the morning', 'afternoon': 'half past two in the afternoon',
+                         'evening': 'six in the evening'}
+                if preference:
+                    reply = 'The demo has a slot at %s tomorrow. This is synthetic availability; nothing is booked.' % slots[preference]
+                else:
+                    reply = 'Would you prefer a morning, afternoon, or evening demo appointment?'
+            else:
+                reply = "I'm here to help you explore support options. Are you safe right now? You can ask for a demo appointment."
+            with self.lock:
+                if cancel.is_set() or epoch != self.led.epoch:
+                    return
+                turn = ledger.Turn(epoch, ledger.split_segments(reply))
+                self.led.turn = turn
+                self.status = 'synthesizing'
+            client = self.client or rime.make_client()
+            with self.lock:
+                self.client = client
+            started = time.perf_counter()
+            for i, segment in enumerate(turn.segments):
+                if cancel.is_set():
+                    return
+                audio, duration, _ = client.synth(segment.text, fmt='L16')
+                with self.lock:
+                    if cancel.is_set() or epoch != self.led.epoch:
+                        self.log('synthesis_fenced', 'In-flight audio discarded for epoch %d' % epoch)
+                        return
+                    turn.set_timing(i, duration, audio)
+            with self.lock:
+                if cancel.is_set() or epoch != self.led.epoch:
+                    return
+                self.audio = dict(epoch=epoch, full_text=turn.full_text, total_ms=turn.total_ms,
+                    provider=client.provider, sample_rate=16000,
+                    synth_ms=round((time.perf_counter()-started)*1000),
+                    segments=[dict(text=s.text, dur_ms=s.dur_ms, t_start_ms=s.t_start_ms,
+                                   audio_b64=base64.b64encode(s.audio).decode()) for s in turn.segments])
+                self.status = 'ready'
+                self.log('audio_ready', 'Waiting for client playback acknowledgement')
         except Exception as exc:
-            log("brain_fallback", str(exc)[:80])
+            with self.lock:
+                if epoch == self.led.epoch and not cancel.is_set():
+                    self.error = str(exc) if isinstance(exc, rime.RimeError) else 'Speech service failed; please retry.'
+                    self.status = 'error'
+                    self.led.turn = None
+                    self.audio = None
+                    self.log('error', self.error)
 
-    low = user_text.lower()
-    if any(w in low for w in ("later", "week", "another", "different")):
-        return ("That's completely fine. I can look at later in the week instead. "
-                "Would a morning or an evening suit you better?")
-    if any(w in low for w in ("no", "don't", "not yet", "wait")):
-        return ("No pressure at all, nothing is booked. We can just talk. "
-                "What's been the hardest part this week?")
-    if "again" in low or "repeat" in low:
-        return "Of course. Let me go through those slots again, slower this time."
-    return ("Okay, I hear you, and I'm glad you called. I've got three counselling "
-            "slots free tomorrow, there's one at ten in the morning, one at half "
-            "past two, and a late one at six in the evening. "
-            "Before we sort that out, are you safe right now?")
-
-
-def _claude(user_text, heard_ctx, key):
-    """Optional LLM path. The context we send is the HEARD transcript - that is the
-    whole point: the model is never told it said something the caller did not hear."""
-    import urllib.request
-    body = json.dumps({
-        "model": "claude-opus-5",
-        "max_tokens": 160,
-        "system": ("You are a calm triage line for a university student in distress. "
-                   "You are NOT a therapist and must not claim to be. Two or three "
-                   "short spoken sentences, no lists, no markdown. If there is any "
-                   "risk to life, hand off to a human counsellor immediately.\n\n"
-                   "Conversation so far (only what the caller ACTUALLY HEARD):\n" + heard_ctx),
-        "messages": [{"role": "user", "content": user_text}],
-    }).encode()
-    req = urllib.request.Request("https://api.anthropic.com/v1/messages", data=body)
-    req.add_header("x-api-key", key)
-    req.add_header("anthropic-version", "2023-06-01")
-    req.add_header("content-type", "application/json")
-    with urllib.request.urlopen(req, timeout=20) as r:
-        return json.load(r)["content"][0]["text"].strip()
-
-
-def ensure_session(mode=None):
-    if STATE["led"] is None or (mode and mode != STATE["mode"]):
-        STATE["mode"] = mode or STATE["mode"]
-        STATE["led"] = ledger.Ledger(mode=STATE["mode"])
-        STATE["turn"] = None
-        STATE["tool"] = None
-        STATE["events"] = []
-        log("session", "mode=%s" % STATE["mode"])
-    if STATE["client"] is None:
-        STATE["client"] = rime.make_client()
-    return STATE["led"]
-
-
-def do_say(payload):
-    led = ensure_session()
-    user_text = (payload.get("text") or "").strip()
-    if user_text:
-        led.user_said(user_text)
-
-    text = brain(user_text, led)
-    turn = led.start_turn(text)
-    STATE["turn"] = turn
-
-    # Dispatch the slot lookup with a deliberate delay, tagged with this turn's epoch.
-    STATE["tool"] = {"epoch": led.epoch, "ready_at": time.time() + TOOL_DELAY_S,
-                     "payload": {"slots": ["10:00", "14:30", "18:00"]}}
-    log("tool_dispatch", "epoch=%d delay=%.1fs" % (led.epoch, TOOL_DELAY_S))
-
-    t0 = time.perf_counter()
-    ttfbs = STATE["client"].synth_turn(turn, fmt=STATE["fmt"])
-    synth_ms = (time.perf_counter() - t0) * 1000
-    log("synth", "%d segments, %.0f ms audio" % (len(turn.segments), turn.total_ms))
-
-    _, rate, _ = rime.FORMATS[STATE["fmt"]]
-    return {
-        "epoch": turn.epoch,
-        "mode": STATE["mode"],
-        "provider": STATE["client"].provider,   # observable, per the brief
-        "full_text": turn.full_text,
-        "total_ms": turn.total_ms,
-        "sample_rate": rate,
-        "synth_ms": round(synth_ms),
-        "ttfb_ms": [round(x) for x in ttfbs],
-        "segments": [{
-            "text": s.text,
-            "char_start": s.char_start,
-            "char_end": s.char_end,
-            "t_start_ms": round(s.t_start_ms, 1),
-            "dur_ms": round(s.dur_ms, 1),
-            "audio_b64": base64.b64encode(s.audio).decode(),
-        } for s in turn.segments],
-    }
-
-
-def do_bargein(payload):
-    led = ensure_session()
-    turn = STATE["turn"]
-    played_ms = float(payload.get("played_ms") or 0)
-    user_text = (payload.get("user_text") or "").strip()
-    t_stop_ms = payload.get("t_stop_ms")  # measured at the speaker, by the client
-
-    generated = turn.full_text if turn else ""
-    res = led.barge_in(played_ms)
-    log("bargein", "played=%.0fms heard=%d chars" % (played_ms, len(res["heard"])))
-
-    # The delayed tool now resolves - for a turn that no longer exists.
-    stale_used = False
-    tool = STATE["tool"]
-    if tool:
-        accepted = led.accept_tool_result(tool["epoch"], tool["payload"])
-        stale_used = accepted and tool["epoch"] < led.epoch
-        log("tool_result", "epoch=%d %s" % (tool["epoch"], "USED" if accepted else "FENCED"))
-        STATE["tool"] = None
-
-    if user_text:
-        led.user_said(user_text)
-
-    believes = led.agent_believes_said()
-    heard_safety = SAFETY_CHECK in res["heard"].lower()
-    return {
-        "mode": STATE["mode"],
-        "played_ms": round(played_ms),
-        "t_stop_ms": t_stop_ms,
-        "generated": generated,
-        "heard": res["heard"],
-        "unheard": res["unheard"],
-        "believes": believes,
-        "epoch": res["epoch"],
-        "stale_result_used": stale_used,
-        "escalated": ledger.risk_signal(user_text) or ledger.risk_signal(res["heard"]),
-        "false_safety_claim": (SAFETY_CHECK in believes.lower()) and not heard_safety,
-        "dropped_results": len(led.dropped_results),
-        "events": STATE["events"][-12:],
-    }
+    def complete(self, epoch):
+        with self.lock:
+            if epoch != self.led.epoch or self.audio is None:
+                return False
+            self.led.complete_turn()
+            self.audio = None
+            self.status = 'listening'
+            self.log('playback_complete', 'Full response committed once')
+            return True
 
 
 class Handler(BaseHTTPRequestHandler):
-    def log_message(self, *a):
+    def log_message(self, *args):
         pass
 
-    def _send(self, code, body, ctype="application/json"):
+    def send(self, code, body, content_type='application/json'):
         raw = body if isinstance(body, bytes) else json.dumps(body).encode()
         self.send_response(code)
-        self.send_header("Content-Type", ctype)
-        self.send_header("Content-Length", str(len(raw)))
+        self.send_header('Content-Type', content_type)
+        self.send_header('Content-Length', str(len(raw)))
+        self.send_header('Cache-Control', 'no-store')
+        self.send_header('X-Content-Type-Options', 'nosniff')
         self.end_headers()
         self.wfile.write(raw)
 
+    def session(self, sid):
+        with SESSIONS_LOCK:
+            session = SESSIONS.get(sid)
+        if not session:
+            raise ValueError('Session expired or missing; start a new session')
+        return session
+
     def do_GET(self):
-        if self.path.startswith("/api/state"):
-            led = STATE["led"]
-            return self._send(200, {
-                "mode": STATE["mode"],
-                "transcript": led.transcript() if led else "",
-                "believes": led.agent_believes_said() if led else "",
-                "events": STATE["events"][-12:],
-            })
-        path = "static/index.html" if self.path in ("/", "") else "static" + self.path
-        path = os.path.normpath(path)
-        if not path.startswith("static") or not os.path.isfile(path):
-            return self._send(404, {"error": "not found"})
-        ctype = "text/html" if path.endswith(".html") else "text/plain"
-        self._send(200, open(path, "rb").read(), ctype + "; charset=utf-8")
+        parsed = urlparse(self.path)
+        if parsed.path == '/api/state':
+            try:
+                return self.send(200, self.session(parse_qs(parsed.query).get('session_id', [''])[0]).snapshot())
+            except ValueError as exc:
+                return self.send(404, {'error': str(exc)})
+        files = {'/': ('index.html', 'text/html'), '/app.js': ('app.js', 'text/javascript')}
+        if parsed.path not in files:
+            return self.send(404, {'error': 'Not found'})
+        name, mime = files[parsed.path]
+        self.send(200, (ROOT / 'static' / name).read_bytes(), mime+'; charset=utf-8')
 
     def do_POST(self):
-        n = int(self.headers.get("Content-Length") or 0)
         try:
-            payload = json.loads(self.rfile.read(n) or b"{}")
-        except ValueError:
-            return self._send(400, {"error": "bad json"})
+            origin = self.headers.get('Origin')
+            if origin and urlparse(origin).netloc != self.headers.get('Host'):
+                return self.send(403, {'error': 'Cross-origin requests are not allowed'})
+            length = int(self.headers.get('Content-Length', '0'))
+            if length < 0 or length > 16384:
+                return self.send(413, {'error': 'Request too large'})
+            body = json.loads(self.rfile.read(length) or b'{}')
+            if not isinstance(body, dict):
+                raise ValueError('Expected an object')
+            if self.path == '/api/reset':
+                mode = body.get('mode', 'ledger')
+                if mode not in ('ledger', 'naive'):
+                    raise ValueError('Invalid mode')
+                with SESSIONS_LOCK:
+                    for sid, old in list(SESSIONS.items()):
+                        if time.monotonic()-old.touched > 3600 or sid == body.get('session_id'):
+                            old.cancel.set()
+                            del SESSIONS[sid]
+                    if len(SESSIONS) >= 100:
+                        return self.send(503, {'error': 'Session capacity reached'})
+                    session = Session(mode)
+                    SESSIONS[session.id] = session
+                return self.send(200, session.snapshot())
+            session = self.session(body.get('session_id'))
+            if self.path == '/api/say':
+                text = body.get('text')
+                rid = body.get('request_id')
+                if not isinstance(text, str) or not text.strip() or len(text) > 2000:
+                    raise ValueError('Provide 1-2000 characters of text')
+                if not isinstance(rid, str) or not 1 <= len(rid) <= 100:
+                    raise ValueError('Missing request identifier')
+                session.submit(text.strip(), rid)
+            elif self.path == '/api/bargein':
+                played = float(body.get('played_ms', 0))
+                if not math.isfinite(played) or played < 0:
+                    raise ValueError('Invalid playback position')
+                session.interrupt(body.get('epoch'), played)
+            elif self.path == '/api/complete':
+                session.complete(body.get('epoch'))
+            elif self.path == '/api/end':
+                session.interrupt(session.led.epoch)
+                with SESSIONS_LOCK:
+                    SESSIONS.pop(session.id, None)
+                return self.send(200, {'ok': True})
+            else:
+                return self.send(404, {'error': 'Not found'})
+            return self.send(200, session.snapshot())
+        except (ValueError, TypeError) as exc:
+            self.send(400, {'error': str(exc)})
 
-        try:
-            with _lock:
-                if self.path == "/api/reset":
-                    STATE["led"] = None
-                    ensure_session(payload.get("mode"))
-                    return self._send(200, {"ok": True, "mode": STATE["mode"]})
-                if self.path == "/api/say":
-                    return self._send(200, do_say(payload))
-                if self.path == "/api/bargein":
-                    return self._send(200, do_bargein(payload))
-        except rime.RimeError as exc:
-            return self._send(503, {"error": str(exc)})
-        except Exception as exc:
-            return self._send(500, {"error": "%s: %s" % (type(exc).__name__, exc)})
-        self._send(404, {"error": "not found"})
 
-
-if __name__ == "__main__":
-    load_env()
-    if not os.environ.get("RIME_API_KEY", "").strip():
-        print("\n  RIME_API_KEY is not set. Run: python preflight.py\n")
-    print("  heard-ledger agent on http://localhost:%d  (tool delay %.1fs)\n" % (PORT, TOOL_DELAY_S))
-    ThreadingHTTPServer(("127.0.0.1", PORT), Handler).serve_forever()
+if __name__ == '__main__':
+    print('Heard Ledger: http://127.0.0.1:%d (synthetic appointments; no real handoff)' % PORT)
+    ThreadingHTTPServer(('127.0.0.1', PORT), Handler).serve_forever()

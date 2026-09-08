@@ -11,10 +11,8 @@ in a distress conversation that divergence is a safety bug, not a UX bug.
 This module is pure logic: no network, no audio I/O. Run it directly for the
 self-check:  python ledger.py
 
-Resolution note (disclosed in RIME_EVIDENCE.md): the played-ms -> character mapping
-is EXACT at segment boundaries and linearly interpolated inside a segment. We snap
-backwards to the last whitespace, so a partially-spoken word counts as UNHEARD.
-That is the conservative direction: we never claim the caller heard more than they did.
+Resolution: only completed segments enter history. The interrupted segment is
+unconfirmed, even if some words played. Client timing cannot prove acoustic reception.
 """
 import re
 
@@ -116,24 +114,17 @@ class Turn:
         return sum(s.dur_ms for s in self.segments)
 
     def char_at_ms(self, played_ms):
-        """Map playback position to a character offset in full_text.
+        """Commit completed segments only; the partial segment stays unconfirmed.
 
-        Conservative: snaps back to a whitespace boundary so a half-spoken word
-        is counted as unheard.
+        Client playback timing is an estimate, not proof of acoustic reception.
+        Never infer word alignment from character count.
         """
-        if played_ms <= 0:
-            return 0
-        if played_ms >= self.total_ms:
-            return len(self.full_text)
-
+        cut = 0
         for seg in self.segments:
-            if seg.dur_ms > 0 and seg.t_start_ms <= played_ms < seg.t_end_ms:
-                frac = (played_ms - seg.t_start_ms) / seg.dur_ms
-                raw = seg.char_start + int(round(frac * len(seg.text)))
-                snapped = self.full_text.rfind(" ", 0, raw)
-                # Never snap back past the start of this segment.
-                return max(seg.char_start, snapped if snapped > 0 else raw)
-        return len(self.full_text)
+            if seg.dur_ms <= 0 or seg.t_end_ms > played_ms:
+                break
+            cut = seg.char_end
+        return cut
 
     def heard(self, played_ms):
         return self.full_text[:self.char_at_ms(played_ms)].strip()
@@ -200,7 +191,7 @@ class Ledger:
         """
         if self.mode == "naive":
             return True
-        if result_epoch < self.epoch:
+        if result_epoch != self.epoch:
             self.dropped_results.append((result_epoch, payload))
             return False
         return True
