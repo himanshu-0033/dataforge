@@ -1,0 +1,13 @@
+
+> pickmate-web@0.1.0 build
+> tsc --noEmit -p tsconfig.app.json && vite build
+
+vite v7.3.6 building client environment for production...
+transforming...
+✓ 440 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                   0.89 kB │ gzip:   0.47 kB
+dist/assets/index-DNdS0vvm.css   27.30 kB │ gzip:   6.08 kB
+dist/assets/index-qMwq-ymc.js   918.61 kB │ gzip: 260.86 kB
+✓ built in 966ms

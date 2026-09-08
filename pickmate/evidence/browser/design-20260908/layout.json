@@ -1,0 +1,47 @@
+[
+  {
+    "width": 320,
+    "overflow": false,
+    "bodyFont": "\"Public Sans\", \"Helvetica Neue\", sans-serif",
+    "headingFont": "\"Barlow Condensed\", \"Helvetica Neue\", sans-serif",
+    "loadedFonts": [
+      "Barlow Condensed",
+      "Barlow Condensed",
+      "Public Sans"
+    ],
+    "headingText": "A pick, from start to finish.",
+    "headlineHeight": 78.375,
+    "headlineLineHeight": 39.2,
+    "screenshot": "welcome-320.png"
+  },
+  {
+    "width": 768,
+    "overflow": false,
+    "bodyFont": "\"Public Sans\", \"Helvetica Neue\", sans-serif",
+    "headingFont": "\"Barlow Condensed\", \"Helvetica Neue\", sans-serif",
+    "loadedFonts": [
+      "Barlow Condensed",
+      "Barlow Condensed",
+      "Public Sans"
+    ],
+    "headingText": "A pick, from\nstart to finish.",
+    "headlineHeight": 94.0625,
+    "headlineLineHeight": 47.04,
+    "screenshot": "welcome-768.png"
+  },
+  {
+    "width": 1440,
+    "overflow": false,
+    "bodyFont": "\"Public Sans\", \"Helvetica Neue\", sans-serif",
+    "headingFont": "\"Barlow Condensed\", \"Helvetica Neue\", sans-serif",
+    "loadedFonts": [
+      "Barlow Condensed",
+      "Barlow Condensed",
+      "Public Sans"
+    ],
+    "headingText": "A pick, from\nstart to finish.",
+    "headlineHeight": 203.21875,
+    "headlineLineHeight": 101.606,
+    "screenshot": "welcome-1440.png"
+  }
+]

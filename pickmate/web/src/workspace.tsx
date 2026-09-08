@@ -23,19 +23,20 @@ type WelcomeProps = {
 
 export function Welcome({ mode, setMode, health, healthBusy, error, refreshHealth, startSession, busy }: WelcomeProps) {
   return <main id="main" className="welcome page-width">
-    <div className="welcome-intro"><span className="eyebrow">Less friction. More flow.</span><span className="edition-label">The everyday inventory assistant</span></div>
     <div className="welcome-layout">
       <section className="welcome-story">
-        <h1>Keep your hands<br/>on the <span>work.</span></h1>
-        <p className="lede">From the first request to the final pick.<br className="desktop-break"/> A clear next step, without the extra screen time.</p>
+        <p className="story-label"><Icon name="headphones"/>Voice-guided inventory picking</p>
+        <h1>Keep your hands<br/>on the work.</h1>
+        <p className="lede">Say what you need. Hear where to go.<br className="desktop-break"/> Confirm the pick when it's in your hands.</p>
         <div className="example-request">
-          <span className="eyebrow">As simple as saying</span>
+          <span className="eyebrow">Try saying</span>
           <p><Icon name="mic"/><span>“Find six blue cartons.”</span></p>
-          <span className="example-caption">Ask. Locate. Confirm. Keep moving.</span>
+          <span className="example-caption">Change the item or quantity as you go.</span>
         </div>
+        <p className="story-footnote">Synthetic inventory. Real picking workflow.</p>
       </section>
       <section className="session-setup" aria-labelledby="setup-heading">
-        <div className="setup-heading"><p className="eyebrow">Ready when you are</p><h2 id="setup-heading">Start your session</h2><p>Choose how you want to work today.</p></div>
+        <div className="setup-heading"><h2 id="setup-heading">Start your session</h2><p>A clear next step, from request to receipt.</p></div>
         <AnimatePresence>{error && <Fade key="error"><ErrorBanner text={error}/></Fade>}</AnimatePresence>
         <AnimatePresence mode="wait" initial={false}>
           {healthBusy && !health ? <Fade key="loading"><div className="mode-loading" role="status" aria-label="Loading session modes"><Skeleton className="skeleton-label"/><Skeleton className="skeleton-mode"/><Skeleton className="skeleton-mode"/></div></Fade> : <Fade key="modes">
@@ -57,16 +58,16 @@ export function Welcome({ mode, setMode, health, healthBusy, error, refreshHealt
         <button className="primary start" onClick={startSession} disabled={busy || healthBusy || !health || (mode === 'fixture' && !health.demo_enabled)} aria-busy={busy}>
           <span>{busy ? 'Starting session' : healthBusy ? 'Connecting' : 'Start session'}</span>{busy || healthBusy ? <InlineSpinner/> : <Icon name="arrow"/>}
         </button>
-        <p className="privacy">Your session stays in this browser tab.<br/>Stock changes only after you confirm a pick.</p>
+        <p className="privacy"><Icon name="check"/><span>Stock changes only after you confirm a pick.<br/>Your session stays in this browser tab.</span></p>
         {!health?.live_ready && (!healthBusy || !!health) && <div className="setup-note"><Icon name="headphones"/><p>Live voice needs connected voice services.<button className="text-button" onClick={refreshHealth} disabled={busy || healthBusy} aria-busy={healthBusy}>{healthBusy ? 'Checking connection' : 'Check connection'}{healthBusy ? <InlineSpinner/> : <Icon name="arrow"/>}</button></p></div>}
       </section>
     </div>
     <section className="workflow-guide" aria-label="How PickMate works">
-      <div className="workflow-heading"><span className="eyebrow">A simpler way through the stockroom</span><span className="muted-label">Three steps. You're on your way.</span></div>
+      <div className="workflow-heading"><h2>A pick, from<br/>{' '}start to finish.</h2><p>You handle the stock.<br/>PickMate keeps track of the request.</p></div>
       <ol>
-        <li><span className="step-number">01 /</span><div><h3>Make the request.</h3><p>Name the item and quantity.<br/> Change your mind as you go.</p></div></li>
-        <li><span className="step-number">02 /</span><div><h3>Find your next step.</h3><p>Get the exact bin and available stock.<br/> No searching through a screen.</p></div></li>
-        <li><span className="step-number">03 /</span><div><h3>Confirm. Then carry on.</h3><p>Confirm what you've picked.<br/> The inventory updates once.</p></div></li>
+        <li><span className="step-number">01</span><h3>Request</h3><p>Name the item and quantity. Correct either whenever you need.</p></li>
+        <li><span className="step-number">02</span><h3>Locate</h3><p>Hear the bin and quantity. Ask to repeat the location while you work.</p></li>
+        <li><span className="step-number">03</span><h3>Confirm</h3><p>Read back what you've picked. The inventory updates once.</p></li>
       </ol>
     </section>
   </main>;

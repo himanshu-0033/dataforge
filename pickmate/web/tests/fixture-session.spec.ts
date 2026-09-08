@@ -1,8 +1,20 @@
 import { expect, test, type Page, type APIRequestContext } from '@playwright/test';
 const apiRoot = 'http://127.0.0.1:8001';
 test.beforeEach(async ({ request }) => { expect((await request.get(`${apiRoot}/api/health`)).ok()).toBeTruthy(); });
-async function start(page: Page) {
+async function start(page: Page, captureWelcome = false) {
   await page.goto('/#main');
+  if (captureWelcome) {
+    await expect(page.getByRole('button', { name: 'Start session', exact: true })).toBeEnabled();
+    await page.evaluate(() => document.fonts.ready.then(() => undefined));
+    await expect(page.locator('.mode-picker').locator('..')).toHaveCSS('opacity', '1');
+    const presentation = await page.evaluate(() => ({
+      fonts: [...document.fonts].filter(face => face.status === 'loaded').map(face => face.family.replaceAll('"', '')),
+      overflow: document.documentElement.scrollWidth > innerWidth,
+    }));
+    expect(presentation.fonts).toEqual(expect.arrayContaining(['Barlow Condensed', 'Public Sans']));
+    expect(presentation.overflow).toBe(false);
+    await page.screenshot({ path: test.info().outputPath('welcome.png'), fullPage: true, animations: 'disabled' });
+  }
   await page.getByRole('button', { name: 'Start session', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'What do you need to pick?' })).toBeVisible();
   await expect.poll(() => page.evaluate(() => scrollY)).toBe(0);
@@ -24,7 +36,7 @@ async function showStockroom(page: Page) {
 }
 
 test('guided picking is readable and requires explicit confirmation before stock changes', async ({ page, request }) => {
-  await start(page);
+  await start(page, true);
   await expect(page.getByText('Text session · Your microphone is off.')).toBeVisible();
   const initial = await snapshot(page, request);
   const available = initial.inventory.find((item: {sku: string}) => item.sku === 'CT-BLU').available;
@@ -52,7 +64,7 @@ test('guided picking is readable and requires explicit confirmation before stock
   await expect(page.locator('.pick-grid').getByText('6', { exact: true })).toBeVisible();
   await expect(page.locator('.pick-grid').getByText('A-03', { exact: true })).toBeVisible({ timeout: 15000 });
   await expect(page.getByRole('region', { name: 'Latest assistant instruction' })).toContainText('bin 3');
-  await page.screenshot({ path: test.info().outputPath('guided-pick.png'), fullPage: true });
+  await page.screenshot({ path: test.info().outputPath('guided-pick.png'), fullPage: true, animations: 'disabled' });
   await page.getByRole('button', { name: "I've picked these", exact: true }).click();
   await expect(page.getByRole('button', { name: 'Confirm 6 blue cartons', exact: true })).toBeVisible();
   const beforeConfirmation = await snapshot(page, request);

@@ -309,7 +309,7 @@ export default function App() {
           </main>
         </Fade>}
       </AnimatePresence>
-      <footer className="site-footer page-width"><span>Built for the work at hand.</span><span>PickMate <span className="footer-slash">/</span> Stockroom assistant</span></footer>
+      <footer className="site-footer page-width"><span>Built for the work at hand.</span><span>PickMate <span className="footer-slash">/</span> Synthetic inventory</span></footer>
       <AnimatePresence>{developerOpen && snapshot && <DeveloperPanel snapshot={snapshot} demoEnabled={!!health?.demo_enabled} delay={delay} setDelay={setDelay} ignoreCancellation={ignoreCancellation} setIgnoreCancellation={setIgnoreCancellation} failure={failure} setFailure={setFailure} inject={injectFault} close={() => setDeveloperOpen(false)} busy={busy} saving={pending === 'faults'} error={actionError}/>}</AnimatePresence>
     </div>
   </MotionConfig>;
