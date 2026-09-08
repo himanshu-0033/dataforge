@@ -84,7 +84,7 @@ sequenceDiagram
   B->>C: playback via Web Audio
 
   C-->>B: interrupts mid-turn
-  Note over B: RMS gate fires; stopAudio ramps gain to 0 in 8 ms
+  Note over B: RMS gate fires, stopAudio ramps gain to 0 in 8 ms
   Note over B: playedMs read from the audio clock BEFORE stopping
   B->>S: POST /api/bargein {played_ms, user_text, t_stop_ms}
   S->>L: barge_in(played_ms)
