@@ -17,12 +17,13 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "backend"))
+from pickmate.config import DEFAULT_LLM_MODEL, GROQ_BASE_URL  # noqa: E402
 from pickmate.voice.providers import CATALOG_URL, RimeConfig, error_category, validate_catalog  # noqa: E402
 
 REQUIRED = (
     "RIME_API_KEY",
     "DEEPGRAM_API_KEY",
-    "OPENAI_API_KEY",
+    "GROQ_API_KEY",
     "LIVEKIT_URL",
     "LIVEKIT_API_KEY",
     "LIVEKIT_API_SECRET",
@@ -51,7 +52,7 @@ def scan_secrets():
             continue
         value = content.decode(errors="replace")
         known = any(s and len(s) >= 12 and s in value for s in secrets)
-        pattern = bool(re.search(r"(?:sk-proj-|sk-live-|sk_test_)[A-Za-z0-9_-]{24,}", value))
+        pattern = bool(re.search(r"(?:sk-proj-|sk-live-|sk_test_|gsk_)[A-Za-z0-9_-]{24,}", value))
         private_key = "-----BEGIN " + "PRIVATE KEY-----" in value
         if known or pattern or private_key:
             findings.append(name)
@@ -109,8 +110,8 @@ async def llm_smoke():
     from pickmate.storage.seed import inventory
     from pickmate.voice.interpreter import Interpreter
 
-    model = os.getenv("LLM_MODEL", "gpt-4.1-mini-2025-04-14")
-    adapter = Interpreter(os.environ["OPENAI_API_KEY"], model)
+    model = os.getenv("LLM_MODEL", DEFAULT_LLM_MODEL)
+    adapter = Interpreter(os.environ["GROQ_API_KEY"], model)
     items = [item.model_dump() for item in inventory()]
     started = time.monotonic()
     try:
@@ -120,6 +121,8 @@ async def llm_smoke():
         if proposal.action != "request" or proposal.quantity != 4 or not item or item["sku"] != "CT-RED":
             raise ValueError("Live model did not return the expected complete structured operation")
         return {
+            "provider": "groq",
+            "endpoint": GROQ_BASE_URL,
             "model": model,
             "streaming_tool_call": "validated",
             "duration_ms": (time.monotonic() - started) * 1000,
@@ -155,6 +158,11 @@ def main():
         "catalog": "not run",
         "synthesis": "not run",
         "llm_streaming": "not run",
+        "llm_configuration": {
+            "provider": "groq",
+            "model": os.getenv("LLM_MODEL", DEFAULT_LLM_MODEL),
+            "endpoint": GROQ_BASE_URL,
+        },
         "organizer_checker": "not supplied; pending",
         "versions": {
             p: version(p)
@@ -189,7 +197,7 @@ def main():
             }
         if os.getenv("RIME_API_KEY") and not args.offline:
             record["synthesis"] = asyncio.run(synthesis(config, args.output))
-        if os.getenv("OPENAI_API_KEY") and not args.offline:
+        if os.getenv("GROQ_API_KEY") and not args.offline:
             record["llm_streaming"] = asyncio.run(llm_smoke())
         if args.live and (record["missing_credentials"] or record["synthesis"] == "not run"):
             failed = True

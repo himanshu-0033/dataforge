@@ -64,10 +64,10 @@ def create_app(settings=None, controller=None, dispatcher=None):
 
     @asynccontextmanager
     async def lifespan(app):
-        if not controller and cfg.openai_api_key:
+        if not controller and cfg.groq_api_key:
             from pickmate.voice.interpreter import Interpreter
 
-            c.interpreter = Interpreter(cfg.openai_api_key, cfg.llm_model)
+            c.interpreter = Interpreter(cfg.groq_api_key, cfg.llm_model)
         await c.initialize()
         yield
         await c.close()

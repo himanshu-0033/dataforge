@@ -8,7 +8,7 @@ flowchart LR
     LiveKit -->|input audio| Worker[Python Agents worker]
     Worker -->|STT| Deepgram[Deepgram Nova-3]
     Worker -->|final text and onset| API[FastAPI]
-    API -->|streamed typed interpretation| LLM[Text LLM adapter]
+    API -->|streamed typed interpretation| LLM[Groq text LLM adapter]
     API --> Controller[Workflow controller]
     Controller -->|atomic transactions| DB[(SQLite)]
     API -->|approved speech and identities| Worker
@@ -20,6 +20,8 @@ flowchart LR
 ```
 
 The API does not relay audio. The model proposes one typed operation; it never commits inventory and its prose never becomes an item/location instruction. The controller renders concise speech from validated state. The worker uses supported LiveKit `say`, interruption, VAD, STT, and playout APIs. The UI reads snapshots with increasing database event revision numbers, preventing an older network response from replacing newer state.
+
+Groq owns text inference, authenticated with `GROQ_API_KEY`. The default model is `openai/gpt-oss-120b`; the adapter explicitly fixes `https://api.groq.com/openai/v1` even when unrelated OpenAI endpoint environment variables exist. The OpenAI SDK is a compatible transport/parser only. Function arguments are accumulated through a terminal `tool_calls` result and validated against `Intent` locally, without relying on provider strict-schema support. Existing response/input fences remain the authority for accepting proposals.
 
 ## State
 

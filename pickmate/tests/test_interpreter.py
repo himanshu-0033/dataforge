@@ -36,6 +36,43 @@ def sse(chunks):
     return "".join("data: " + json.dumps(c) + "\n\n" for c in chunks) + "data: [DONE]\n\n"
 
 
+async def test_default_adapter_sends_groq_key_only_to_groq_and_validates_stream(monkeypatch):
+    monkeypatch.setenv("OPENAI_BASE_URL", "https://unrelated.invalid/v1")
+
+    async def send(request):
+        assert str(request.url) == "https://api.groq.com/openai/v1/chat/completions"
+        assert request.headers["authorization"] == "Bearer fixture-groq"
+        body = json.loads(request.content)
+        assert body["model"] == "openai/gpt-oss-120b"
+        assert body["stream"] is True and body["parallel_tool_calls"] is False
+        assert "strict" not in body["tools"][0]["function"]
+        assert body["tool_choice"]["function"]["name"] == "propose_operation"
+        return httpx.Response(
+            200,
+            request=request,
+            headers={"content-type": "text/event-stream"},
+            text=sse(
+                [
+                    chunk('{"action":"request",', name="propose_operation"),
+                    chunk('"query":"red cartons","quantity":4}', finish="tool_calls"),
+                ]
+            ),
+        )
+
+    monkeypatch.setattr(
+        "pickmate.voice.interpreter.AsyncOpenAI",
+        lambda **kwargs: AsyncOpenAI(
+            **kwargs, http_client=httpx.AsyncClient(transport=httpx.MockTransport(send))
+        ),
+    )
+    adapter = Interpreter("fixture-groq")
+    try:
+        result = await adapter.interpret("Find four red cartons", None, [])
+        assert result.action == "request" and result.quantity == 4 and result.query == "red cartons"
+    finally:
+        await adapter.close()
+
+
 async def test_real_openai_sdk_stream_adapter_assembles_only_complete_tool_arguments():
     async def handler(request):
         body = json.loads(request.content)

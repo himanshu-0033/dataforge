@@ -10,10 +10,11 @@ The original acceptance specification is [docs/ACCEPTANCE.md](docs/ACCEPTANCE.md
 |---|---|---|
 | Controller stress corpus | 30/30 passed; zero obsolete queued instructions; zero duplicate writes | Fixture text input and actual isolated SQLite databases. [Rows](evidence/stress/trials.jsonl), [summary](evidence/stress/summary.json), individual event traces and final snapshots in each trial directory |
 | Five-second delay | Two configured trials, including one that ignores cancellation and actually returns late | Trials 01 and 02; a cancelled silent lookup does not count as an audible interruption trial |
-| Backend / SDK boundary tests | 68 passed; [pytest.xml](evidence/pytest.xml) | Domain, API ownership/tokens, race/recovery, provider configuration, real SDK parsing with fixture transport, measurement exclusions |
+| Backend / SDK boundary tests | 70 passed; [pytest.xml](evidence/pytest.xml) | Domain, API ownership/tokens, race/recovery, provider configuration, real SDK parsing with fixture transport, measurement exclusions |
 | Browser workflow | 4/4 passed: desktop Chromium and mobile Chromium fixture scenarios; 6/6 frontend unit tests; production build passed | See [manifest](evidence/MANIFEST.md) and saved browser results; UI tests do not prove audible stopping |
 | Rime catalog | `coda` / `astra` / `eng` pairing validated against downloaded live catalog | [Dated preflight records](evidence/preflight/), [catalog snapshot](fixtures/rime-catalog-2026-09-08.json); SHA-256 `3a4146ba98584c54bab9f66e8cf9b04c8d0281a976bcf5d4efc8831e836578dd` |
-| Rime synthesis | Not run; no Rime key configured during these runs | Strict live preflight fails, with missing variable names only |
+| Rime synthesis | Two real streaming clips generated with coda/astra/en | [Actual preflight](evidence/preflight/preflight-20260908T142529Z.json); [variant 1](evidence/preflight/bin-variant-1.wav), [variant 2](evidence/preflight/bin-variant-2.wav). Human listening comparison pending; these are standalone wording fixtures, not current inventory instructions |
+| LiveKit credential check | Passed: authenticated read-only room-list request | Trusted certifi CA bundle was required on this macOS Python installation. No room audio test performed |
 | Live STT and model tool calling | Not run | Complete streaming/tool adapter exercised through actual OpenAI SDK with fixture SSE; no provider success implied |
 | Audible barge-in stop | Unverified; **n=0** | No real operator shared-clock recording; no p50/p95 reported |
 | End of user turn to first audio / substantive answer | Not run; **n=0** | No timing value inferred from fixture queue events |
@@ -25,7 +26,9 @@ The original acceptance specification is [docs/ACCEPTANCE.md](docs/ACCEPTANCE.md
 
 Rime: `coda`, `astra`, `en` (catalog normalization `eng`), `use_websocket=True`, sentence segmentation `bySentence`, base `wss://users-ws.rime.ai`, resolved `/ws3`, signed 16-bit mono PCM at 24,000 Hz in JSON/base64 WebSocket frames. US West (`us-west-2`) is provisional; selection using measurements from a deployed worker remains pending. The browser receives negotiated LiveKit WebRTC audio; actual codec and physical buffering are unverified.
 
-Installed LiveKit Agents and Rime/Deepgram/Silero/OpenAI plugins: `1.5.17`; Python RTC: `1.1.8`; LiveKit API: `1.2.1`. Deepgram: `nova-3`, `en-US`, 16,000 Hz integration with inventory keyterms. Text LLM: `gpt-4.1-mini-2025-04-14`, OpenAI SDK `3.8.0`. React `19.2.8`, TypeScript `5.9.3`, Vite `7.3.6`, LiveKit browser SDK `2.22.3`, Playwright `1.63.0`. Exact transitive versions are in the committed lockfiles.
+Installed LiveKit Agents and Rime/Deepgram/Silero/OpenAI plugins: `1.5.17`; Python RTC: `1.1.8`; LiveKit API: `1.2.1`. Deepgram: `nova-3`, `en-US`, 16,000 Hz integration with inventory keyterms. Text LLM: Groq-hosted `openai/gpt-oss-120b` at `https://api.groq.com/openai/v1`, using OpenAI SDK `3.8.0` as a compatible client; no OpenAI credentials. React `19.2.8`, TypeScript `5.9.3`, Vite `7.3.6`, LiveKit browser SDK `2.22.3`, Playwright `1.63.0`. Exact transitive versions are in the committed lockfiles.
+
+Two synthesis observations reached their first decoded frame after 1.765 s and 0.425 s respectively (n=2, sequential requests). These are provider-stream observations, not end-to-end response latency or audible-stop measurements; no percentile or cold/warm claim is made. Earlier certificate failures are retained in the preflight records.
 
 ## Repeat the checks
 
