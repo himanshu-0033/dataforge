@@ -1,5 +1,5 @@
 UV ?= uv
-PROJECT := pickmate
+PROJECT := app
 
 .PHONY: install api web worker test test-web test-browser check preflight preflight-live
 

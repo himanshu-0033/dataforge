@@ -12,13 +12,13 @@ From the repository root, with the existing Python and frontend dependencies ins
 
 Open **http://localhost:5173**. Choose **Start talking** and allow microphone access, or **I prefer to type**. In a voice session, the message field remains available. **Pause voice** pauses audio and microphone input; typed conversation still works. **Resume voice** resumes the microphone. **End conversation** clears the transcript from app memory.
 
-Provider configuration is read from the ignored local `pickmate/.env`. `COUNSELOR_PROVIDER=vertex` uses paid Gemini through Google Cloud; `COUNSELOR_PROVIDER=groq` selects Groq explicitly. LiveKit transports voice, Deepgram transcribes, and Rime speaks. `WORKER_SECRET` authenticates the internal bridge. The privacy dialog identifies the active text provider. Provider failures are surfaced without silently routing a conversation elsewhere.
+Provider configuration is read from the ignored local `app/.env`. `COUNSELOR_PROVIDER=vertex` uses paid Gemini through Google Cloud; `COUNSELOR_PROVIDER=groq` selects Groq explicitly. LiveKit transports voice, Deepgram transcribes, and Rime speaks. `WORKER_SECRET` authenticates the internal bridge. The privacy dialog identifies the active text provider. Provider failures are surfaced without silently routing a conversation elsewhere.
 
 For Vertex, use `GOOGLE_CREDENTIALS_BASE64` for service account JSON encoded as base64. The server decodes it in memory and renews access tokens through Google's authentication library; it does not create a decoded key file. Base64 is encoding, not encryption. `GOOGLE_CLOUD_PROJECT` can be omitted when the service account supplies it. Application Default Credentials are also supported; specify a project for that path. Never put credentials in `VITE_` variables or `.env.example`.
 
 The Vertex defaults are `VERTEX_MODEL=gemini-3.1-pro-preview`, `GOOGLE_CLOUD_LOCATION=global`, and `VERTEX_THINKING_LEVEL=MEDIUM`. The model and thinking level are configurable independently of the conversation policy. Google's [Gemini 3.1 Pro documentation](https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/gemini/3-1-pro) lists this model as preview and does not currently support tuning. The integration uses the [Gemini streaming API](https://docs.cloud.google.com/gemini-enterprise-agent-platform/reference/models/inference).
 
-The API entry point is `counselor.app:app` under `pickmate/backend`; the worker is `counselor.worker`. Both use the `heard` agent and room prefix. The React entry point is `pickmate/web/src/App.tsx`. Provider configuration, dispatch, and voice request models live in the counselor package. See the root [README](../README.md) for installation, checks, and the source layout.
+The API entry point is `counselor.app:app` under `app/backend`; the worker is `counselor.worker`. Both use the `heard` agent and room prefix. The React entry point is `app/web/src/App.tsx`. Provider configuration, dispatch, and voice request models live in the counselor package. See the root [README](../README.md) for installation, checks, and the source layout.
 
 ## Conversation and data behavior
 
@@ -35,7 +35,7 @@ The assistant identifies itself as AI support. It cannot connect to a human coun
 ## Verification
 
 ```powershell
-cd pickmate
+cd app
 .\.venv\Scripts\python.exe -m pytest -q
 cd web
 npm.cmd run build
@@ -46,10 +46,10 @@ Backend tests cover conversation context, provider message formats and completio
 
 ## Evaluate before fine-tuning
 
-`pickmate/fixtures/counselor-conversations.json` contains thirteen synthetic scenarios and review criteria for the first meeting, specific reflection, corrections, rejected suggestions, continuity, direct requests, language, safety, meaning, and summaries. These are development evaluation cases, not a clinically reviewed training dataset. Review outputs yourself and add fresh holdout scenarios before drawing broader conclusions. See the [conversation design and sources](COUNSELOR_CONVERSATION_DESIGN.md) for how professional guidance informs these behaviors.
+`app/fixtures/counselor-conversations.json` contains thirteen synthetic scenarios and review criteria for the first meeting, specific reflection, corrections, rejected suggestions, continuity, direct requests, language, safety, meaning, and summaries. These are development evaluation cases, not a clinically reviewed training dataset. Review outputs yourself and add fresh holdout scenarios before drawing broader conclusions. See the [conversation design and sources](COUNSELOR_CONVERSATION_DESIGN.md) for how professional guidance informs these behaviors.
 
 ```powershell
-cd pickmate
+cd app
 # Inspect synthetic scenarios without calling a model:
 .\.venv\Scripts\python.exe scripts/evaluate_conversation.py
 # Generate paid provider replies, saved only in ignored .cache:

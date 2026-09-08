@@ -1,9 +1,9 @@
 param([switch]$Restart)
 $ErrorActionPreference = 'Stop'
 $projectRoot = $PSScriptRoot
-$serviceRoot = Join-Path $projectRoot 'pickmate'
+$serviceRoot = Join-Path $projectRoot 'app'
 $pythonExe = Join-Path $serviceRoot '.venv\Scripts\python.exe'
-if (-not (Test-Path -LiteralPath $pythonExe)) { throw 'Install the Python dependencies in pickmate/.venv first.' }
+if (-not (Test-Path -LiteralPath $pythonExe)) { throw 'Install the Python dependencies in app/.venv first.' }
 $logRoot = Join-Path $serviceRoot '.cache'
 New-Item -ItemType Directory -Path $logRoot -Force | Out-Null
 

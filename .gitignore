@@ -10,7 +10,7 @@ __pycache__/
 *.egg-info/
 .cache/
 out/
-pickmate/data/
+app/data/
 node_modules/
 dist/
 test-results/
