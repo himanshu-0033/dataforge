@@ -12,6 +12,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse, parse_qs
 
 import ledger
+import brain
 import rime
 from preflight import load_env
 
@@ -24,11 +25,12 @@ SESSIONS_LOCK = threading.Lock()
 
 
 class Session:
-    def __init__(self, mode='ledger', client=None):
+    def __init__(self, mode='ledger', client=None, brain_client=None):
         self.id = uuid.uuid4().hex
         self.lock = threading.RLock()
         self.led = ledger.Ledger(mode)
         self.client = client
+        self.brain = brain_client or brain.make_brain()
         self.cancel = threading.Event()
         self.status = 'listening'
         self.audio = None
@@ -39,6 +41,16 @@ class Session:
         self.last_cut = None
         self.requests = set()
         self.touched = time.monotonic()
+
+    def configuration(self):
+        notes = []
+        if self.brain.provider == 'OpenAI' and not brain.configured():
+            notes.append('OpenAI is not configured: add OPENAI_API_KEY to .env and restart.')
+        if os.environ.get('RIME_DEV_STUB','').strip() in ('1','true','yes'):
+            notes.append('Audio test stub enabled: it emits a hum, not speech. Set RIME_DEV_STUB=0 for Rime.')
+        elif not os.environ.get('RIME_API_KEY','').strip() or os.environ.get('RIME_API_KEY','').startswith('your_'):
+            notes.append('Rime is not configured: add RIME_API_KEY to .env and restart.')
+        return notes
 
     def log(self, kind, detail):
         self.events.append({'kind': kind, 'detail': detail, 't': round(time.monotonic(), 3)})
@@ -52,6 +64,8 @@ class Session:
                         transcript=self.led.transcript(), believes=self.led.agent_believes_said(),
                         events=list(self.events), dropped_results=len(self.led.dropped_results),
                         handoff=self.handoff, last_cut=self.last_cut,
+                        brain=self.brain.provider, model=self.brain.model,
+                        configuration=self.configuration(),
                         provider=self.client.provider if self.client else 'RIME (not connected)')
 
     def interrupt(self, epoch, played_ms=0):
@@ -90,9 +104,6 @@ class Session:
             # keyword gate, not a clinically validated classifier.
             if ledger.risk_signal(text):
                 self.handoff = 'unavailable_demo'
-            matches = list(re.finditer(r'\b(morning|afternoon|evening)\b', text, re.I))
-            if matches:
-                self.preference = matches[-1].group().lower()
             preference = self.preference
             self.log('user', text)
             threading.Thread(target=self._work, args=(epoch, cancel, text, preference), daemon=True).start()
@@ -103,31 +114,37 @@ class Session:
             if self.handoff != 'not_requested':
                 reply = ('Thank you for telling me. This demo cannot connect you to a counsellor. '
                          'Please contact a trusted person or local emergency support if you are in immediate danger.')
-            elif re.search(r"\b(cancel|stop)\b|don.t (?:want to )?book", text, re.I):
-                reply = 'The demo lookup is cancelled. Nothing has been booked.'
-            elif preference or re.search(r'\b(slot|appointment|book|counselling)\b', text, re.I):
-                with self.lock:
-                    self.log('tool_dispatch', 'Synthetic slot lookup; %.1fs delay; epoch %d' % (TOOL_DELAY_S, epoch))
-                if cancel.wait(TOOL_DELAY_S):
-                    with self.lock:
-                        self.log('tool_cancelled', 'Lookup cancelled for epoch %d' % epoch)
-                    return
-                with self.lock:
-                    if not self.led.accept_tool_result(epoch, {'preference': preference}):
-                        self.log('tool_fenced', 'Obsolete lookup result rejected')
-                        return
-                slots = {'morning': 'ten in the morning', 'afternoon': 'half past two in the afternoon',
-                         'evening': 'six in the evening'}
-                if preference:
-                    reply = 'The demo has a slot at %s tomorrow. This is synthetic availability; nothing is booked.' % slots[preference]
-                else:
-                    reply = 'Would you prefer a morning, afternoon, or evening demo appointment?'
             else:
-                reply = "I'm here to help you explore support options. Are you safe right now? You can ask for a demo appointment."
+                with self.lock:
+                    history = list(self.led.history)
+                decision = self.brain.respond(history)
+                if cancel.is_set():
+                    return
+                if 'lookup' in decision:
+                    preference = decision['lookup']
+                    with self.lock:
+                        if epoch != self.led.epoch:
+                            return
+                        self.preference = preference
+                        self.log('tool_dispatch', 'Synthetic slot lookup; %.1fs delay; epoch %d' % (TOOL_DELAY_S, epoch))
+                    if cancel.wait(TOOL_DELAY_S):
+                        with self.lock:
+                            self.log('tool_cancelled', 'Lookup cancelled for epoch %d' % epoch)
+                        return
+                    slots = {'morning': 'ten in the morning', 'afternoon': 'half past two in the afternoon',
+                             'evening': 'six in the evening', 'any': 'ten in the morning'}
+                    result = {'preference':preference, 'spoken_time':slots[preference], 'synthetic':True, 'booked':False}
+                    with self.lock:
+                        if not self.led.accept_tool_result(epoch, result) or cancel.is_set():
+                            self.log('tool_fenced', 'Obsolete lookup result rejected')
+                            return
+                    decision = self.brain.respond(history, tool_result=result)
+                reply = decision['reply']
             with self.lock:
                 if cancel.is_set() or epoch != self.led.epoch:
                     return
-                turn = ledger.Turn(epoch, ledger.split_segments(reply))
+                turn = ledger.Turn(epoch, [part for sentence in re.split(r'(?<=[.!?])\s+', reply)
+                                           for part in ledger.split_segments(sentence, max_chars=180)])
                 self.led.turn = turn
                 self.status = 'synthesizing'
             client = self.client or rime.make_client()
@@ -156,7 +173,7 @@ class Session:
         except Exception as exc:
             with self.lock:
                 if epoch == self.led.epoch and not cancel.is_set():
-                    self.error = str(exc) if isinstance(exc, rime.RimeError) else 'Speech service failed; please retry.'
+                    self.error = str(exc) if isinstance(exc, (rime.RimeError, brain.BrainError)) else 'Speech service failed; please retry.'
                     self.status = 'error'
                     self.led.turn = None
                     self.audio = None
@@ -188,6 +205,8 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(raw)
 
     def session(self, sid):
+        if not isinstance(sid, str):
+            raise ValueError('Invalid session identifier')
         with SESSIONS_LOCK:
             session = SESSIONS.get(sid)
         if not session:

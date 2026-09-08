@@ -44,6 +44,7 @@
   <h1>HEARD LEDGER</h1>
   <span class="pill" id="modePill">mode: ledger</span>
   <span class="pill" id="micPill">mic: off</span>
+  <span class="pill" id="brainPill">conversation: &mdash;</span>
   <span class="pill" id="provPill">provider: &mdash;</span>
   <div class="sp"></div>
   <button id="btnMode">toggle naive / ledger</button>
@@ -53,15 +54,18 @@
 
 <section style="min-height:0">
   <p>Browser prototype. Synthetic appointments; no booking or live counsellor connection. Use synthetic scenarios only. Headphones recommended.</p>
+  <p id="configuration" role="status" style="color:var(--warn)"></p>
   <p id="status" role="status" aria-live="polite">Start a session, then speak or type.</p>
   <form id="messageForm"><label for="message">Your message</label>
-    <input id="message" maxlength="2000" autocomplete="off" placeholder="Could I have a morning appointment?" style="width:55%;padding:10px">
+    <input id="message" maxlength="2000" autocomplete="off" placeholder="Hi, I have a lot on my mind today…" style="width:55%;padding:10px">
     <button id="send" disabled>Send</button>
   </form>
   <p id="recognition" aria-live="polite"></p>
+  <button id="btnMic" disabled>Enable microphone</button>
   <button id="btnEnd" disabled>End session</button>
   <p id="handoff"></p>
 </section>
+<section style="min-height:0"><h2>Conversation</h2><div id="conversation" class="body" style="font-size:15px;max-height:220px;overflow:auto"></div></section>
 <main>
   <section>
     <h2>Generated &mdash; what the model produced</h2>

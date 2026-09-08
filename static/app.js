@@ -14,6 +14,9 @@ async function api(path, body) {
 }
 function render(state) {
   epoch = state.epoch;
+  $('brainPill').textContent = 'conversation: ' + state.brain;
+  $('configuration').textContent = (state.configuration || []).join(' ');
+  $('conversation').textContent = state.transcript || 'Say hello to begin.';
   busy = ['working','synthesizing','ready'].includes(state.status);
   $('status').textContent = state.error || (playing ? 'Speaking — you can interrupt.' :
     busy ? 'Working — you can change or cancel your request.' : 'Listening — speak or type.');
@@ -24,7 +27,7 @@ function render(state) {
   $('flags').textContent = 'Rejected stale results: ' + state.dropped_results;
   $('handoff').textContent = state.handoff === 'unavailable_demo' ?
     'Human handoff unavailable: this prototype has no live counsellor connection.' : '';
-  if (state.last_cut) $('heard').textContent = state.last_cut.heard || '(No complete segment confirmed)';
+  if (state.last_cut && state.last_cut.epoch === state.epoch && !playing) $('heard').textContent = state.last_cut.heard || '(No complete segment confirmed)';
   $('log').textContent = state.events.map(e => e.kind + ': ' + e.detail).reverse().join('\n');
   $('btnBarge').disabled = !busy && !playing;
 }
@@ -56,7 +59,7 @@ function interrupt() {
     const state = await api('/api/bargein', {epoch:oldEpoch, played_ms:played});
     if (token === generation) render(state);
   });
-  mutation.catch(fail);
+  mutation = mutation.catch(fail);
   return mutation;
 }
 async function submit(text) {
@@ -69,6 +72,7 @@ async function submit(text) {
     const state = await api('/api/say', {text, request_id:crypto.randomUUID()});
     if (token === generation) render(state);
   });
+  mutation = mutation.catch(fail);
   await mutation;
 }
 function play(turn) {
@@ -97,10 +101,11 @@ function play(turn) {
       const state=await api('/api/complete',{epoch:turn.epoch});
       if(token===generation) { render(state); $('heard').textContent=turn.full_text; }
     });
-    mutation.catch(fail);
+    mutation = mutation.catch(fail);
   };
   source.start();
   $('generated').textContent=turn.full_text;
+  $('heard').textContent='Awaiting playback completion; interrupted segments remain unconfirmed.';
   $('status').textContent='Speaking — you can interrupt.';
   $('btnBarge').disabled=false;
 }
@@ -130,9 +135,11 @@ function flushSpeech() {
   if(text) submit(text).catch(fail);
 }
 async function startMic() {
+  const micGeneration=generation;
   try {
-    stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true}});
-    if(!active) { stream.getTracks().forEach(t=>t.stop()); return; }
+    const acquired=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true}});
+    if(!active || micGeneration!==generation) { acquired.getTracks().forEach(t=>t.stop()); return; }
+    stream=acquired;
     const input=ctx.createMediaStreamSource(stream), analyser=ctx.createAnalyser();
     analyser.fftSize=512; input.connect(analyser);
     const data=new Float32Array(512); let above=0;
@@ -145,7 +152,7 @@ async function startMic() {
       frame=requestAnimationFrame(tick);
     }
     tick(); $('micPill').textContent='mic: on';
-  } catch(error) { log('Microphone unavailable. Type a message to continue.'); }
+  } catch(error) { log('Microphone unavailable. Type a message to continue.'); $('btnMic').disabled=false; }
   const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
   if(!SR || !stream) { $('recognition').textContent='Speech recognition unavailable. Use the message field.'; return; }
   recognition=new SR(); recognition.lang='en-IN'; recognition.continuous=true; recognition.interimResults=true;
@@ -157,7 +164,7 @@ async function startMic() {
     }
     if(finalText.trim()||interimText.trim()) interrupt();
     $('recognition').textContent=(finalText+' '+interimText).trim();
-    if(!interimText) flushTimer=setTimeout(flushSpeech,700);
+    if(!interimText) flushTimer=setTimeout(flushSpeech,450);
   };
   recognition.onerror=event=>{
     if(['not-allowed','service-not-allowed','audio-capture'].includes(event.error)) {
@@ -167,6 +174,7 @@ async function startMic() {
   recognition.onend=()=>{
     if(!active) return;
     if(finalText.trim()&&!interimText) flushSpeech();
+    else { clearSpeech(); $('recognition').textContent='Recognition ended before the utterance was final. Please repeat or type it.'; }
     restartTimer=setTimeout(()=>{ if(active) try{recognition.start();}catch{} },400);
   };
   recognition.start();
@@ -180,7 +188,7 @@ async function end() {
   await mutation.catch(()=>{});
   if(oldSession) await api('/api/end',{}).catch(fail);
   session=null; mutation=Promise.resolve();
-  $('btnStart').disabled=false; $('btnEnd').disabled=true; $('send').disabled=true;
+  $('btnMic').disabled=true; $('btnStart').disabled=false; $('btnEnd').disabled=true; $('send').disabled=true;
   $('btnBarge').disabled=true; $('btnMode').disabled=false; $('micPill').textContent='mic: off';
   $('status').textContent='Session ended.';
 }
@@ -191,9 +199,10 @@ $('btnStart').onclick=async()=>{
     const state=await api('/api/reset',{mode});
     session=state.session_id; epoch=state.epoch; active=true; generation++; lastAudioEpoch=-1;
     $('send').disabled=false; $('btnEnd').disabled=false; $('btnMode').disabled=true;
-    render(state); await startMic();
+    render(state); $('btnMic').disabled=false;
   } catch(error) { fail(error); $('btnStart').disabled=false; }
 };
+$('btnMic').onclick=async()=>{ $('btnMic').disabled=true; await startMic(); };
 $('btnEnd').onclick=()=>end().catch(fail);
 $('btnBarge').onclick=()=>interrupt();
 $('btnMode').onclick=()=>{mode=mode==='ledger'?'naive':'ledger';$('modePill').textContent='mode: '+mode;};
