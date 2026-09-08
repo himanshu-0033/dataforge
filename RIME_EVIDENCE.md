@@ -126,3 +126,8 @@ around the Web Audio stop. Reported live in the UI and in the demo recording.
   audited rather than trusted.
 - **Pronunciation control is wired but unused** — no phoneme entries shipped, because
   we did not verify any by ear. No pronunciation claim is made.
+- **A dev stub exists** (`RIME_DEV_STUB=1`) that generates a hum instead of calling
+  Rime, used only while building the client. It is off by default, reports
+  `provider = "STUB (NOT RIME)"`, and is rendered in red in the UI. No result in this
+  document may come from a stub run — every row in §5 and §6 requires
+  `provider = "RIME"`.

@@ -40,6 +40,68 @@ class RimeError(RuntimeError):
     pass
 
 
+class StubClient:
+    """DEV ONLY. Generates a hum of the right duration instead of calling Rime.
+
+    Exists so the playback clock, barge-in and split-screen view can be developed
+    and tested without spending API calls or blocking on a key. It is NEVER the
+    judged path: it is off unless RIME_DEV_STUB=1 is set explicitly, it reports
+    provider="STUB (NOT RIME)", and the UI renders that in red.
+
+    Per the brief: fallback behaviour is allowed but must be disclosed, and the
+    active speech provider must be observable.
+    """
+
+    provider = "STUB (NOT RIME)"
+
+    def __init__(self, *a, **kw):
+        self.model, self.speaker, self.lang = "stub", "stub", "eng"
+        self.calls = 0
+        self.total_ttfb = 0.0
+
+    def synth(self, text, fmt="L16", speed=1.0):
+        import math
+        _, rate, bps = FORMATS[fmt]
+        dur_ms = max(220.0, len(text) * 55.0 / max(speed, 0.1))
+        n = int(rate * dur_ms / 1000.0)
+        buf = bytearray()
+        for i in range(n):
+            t = i / rate
+            # Wobbling low tone with a per-word envelope: audible, obviously synthetic.
+            env = 0.35 * (0.55 + 0.45 * math.sin(2 * math.pi * 2.7 * t))
+            s = env * math.sin(2 * math.pi * (172 + 26 * math.sin(2 * math.pi * 0.9 * t)) * t)
+            if bps == 2:
+                buf += struct.pack("<h", int(s * 26000))
+            else:
+                buf.append(int((s + 1) * 127.5) & 0xFF)
+        self.calls += 1
+        return bytes(buf), len(buf) / bps / rate * 1000.0, 4.0
+
+    synth_turn = None  # bound below
+
+    def turn_audio(self, turn):
+        return b"".join(s.audio for s in turn.segments)
+
+
+def _stub_synth_turn(self, turn, fmt="L16", speed=1.0):
+    out = []
+    for i, seg in enumerate(turn.segments):
+        audio, dur_ms, ttfb = self.synth(seg.text, fmt=fmt, speed=speed)
+        turn.set_timing(i, dur_ms, audio)
+        out.append(ttfb)
+    return out
+
+
+StubClient.synth_turn = _stub_synth_turn
+
+
+def make_client(api_key=None):
+    """Returns the real Rime client, or the dev stub if RIME_DEV_STUB=1."""
+    if os.environ.get("RIME_DEV_STUB", "").strip() in ("1", "true", "yes"):
+        return StubClient()
+    return RimeClient(api_key)
+
+
 def wav_bytes(pcm, rate):
     """Wrap 16-bit mono PCM in a WAV header."""
     hdr = b"RIFF" + struct.pack("<I", 36 + len(pcm)) + b"WAVEfmt "
@@ -60,6 +122,8 @@ def apply_pronunciation(text):
 
 
 class RimeClient:
+    provider = "RIME"
+
     def __init__(self, api_key=None, model=MODEL, speaker=SPEAKER, lang=LANG):
         self.api_key = (api_key or os.environ.get("RIME_API_KEY", "")).strip()
         if not self.api_key:

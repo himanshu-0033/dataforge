@@ -111,7 +111,7 @@ def ensure_session(mode=None):
         STATE["events"] = []
         log("session", "mode=%s" % STATE["mode"])
     if STATE["client"] is None:
-        STATE["client"] = rime.RimeClient()
+        STATE["client"] = rime.make_client()
     return STATE["led"]
 
 
@@ -139,6 +139,7 @@ def do_say(payload):
     return {
         "epoch": turn.epoch,
         "mode": STATE["mode"],
+        "provider": STATE["client"].provider,   # observable, per the brief
         "full_text": turn.full_text,
         "total_ms": turn.total_ms,
         "sample_rate": rate,

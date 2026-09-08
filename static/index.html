@@ -43,6 +43,7 @@
   <h1>HEARD LEDGER</h1>
   <span class="pill" id="modePill">mode: ledger</span>
   <span class="pill" id="micPill">mic: off</span>
+  <span class="pill" id="provPill">provider: &mdash;</span>
   <div class="sp"></div>
   <button id="btnMode">toggle naive / ledger</button>
   <button id="btnStart" class="primary">start call</button>
@@ -120,8 +121,17 @@ function playTurn(turn) {
   src.onended = () => { if (playing) { playing = false; $("btnBarge").disabled = true; } };
   src.start();
   $("btnBarge").disabled = false;
+
+  // The active speech provider must be observable at all times.
+  const p = $("provPill");
+  p.textContent = "provider: " + turn.provider;
+  const stub = turn.provider !== "RIME";
+  p.className = "pill" + (stub ? "" : " on");
+  p.style.color = stub ? "var(--unheard)" : "";
+  p.style.borderColor = stub ? "var(--unheard)" : "";
+
   log("playing " + Math.round(turn.total_ms) + " ms in " + turn.segments.length
-      + " segments (synth " + turn.synth_ms + " ms)");
+      + " segments (synth " + turn.synth_ms + " ms) via " + turn.provider);
 }
 
 const playedMs = () => playing ? Math.max(0, (ctx.currentTime - playStart) * 1000) : 0;
