@@ -1,0 +1,1327 @@
+{
+  "session_id": "bd5312e4bc794f599219576235d64604",
+  "room": "pickmate-bd5312e4bc794f599219576235d64604",
+  "mode": "fixture",
+  "ended": false,
+  "paused": false,
+  "resolving": false,
+  "response_epoch": 6,
+  "input_id": "reconnect",
+  "worker_epoch": 0,
+  "worker_id": null,
+  "task": {
+    "task_id": "0f9b9920162742fb953b247bd20a5656",
+    "task_version": 2,
+    "operation_id": "7e477828793c444cb910c01b286cac40",
+    "item": {
+      "sku": "CT-RED",
+      "name": "red cartons",
+      "aliases": [
+        "red boxes"
+      ],
+      "attributes": {
+        "color": "red",
+        "size": "standard"
+      },
+      "bin": "B-07",
+      "available": 28,
+      "inventory_version": 2
+    },
+    "quantity": 4,
+    "status": "committed"
+  },
+  "speech": {
+    "response_id": "f16812f6c65b49ba8dccb2d12e9c4930",
+    "response_epoch": 6,
+    "task_version": 2,
+    "task_id": "0f9b9920162742fb953b247bd20a5656",
+    "text": "Already recorded 4 red cartons. Inventory was updated once.",
+    "status": "queued",
+    "substantive": true,
+    "allow_while_paused": false,
+    "delivered_estimate": "none"
+  },
+  "confirmation": null,
+  "provider": {
+    "name": "fixture",
+    "status": "fixture",
+    "model": null,
+    "speaker": null,
+    "language": "en",
+    "endpoint": null
+  },
+  "faults": {
+    "lookup_delay_ms": 0,
+    "ignore_cancellation": false,
+    "fail_provider": null
+  },
+  "tool_states": {
+    "57bec700139c4601bc23b8a4c9ae879c": {
+      "status": "cancelled",
+      "task_id": "0f9b9920162742fb953b247bd20a5656",
+      "task_version": 1
+    },
+    "3082dc7aad8b43cab59beb7e8c0e7878": {
+      "status": "completed",
+      "task_id": "0f9b9920162742fb953b247bd20a5656",
+      "task_version": 2
+    }
+  },
+  "inventory": [
+    {
+      "sku": "BG-LRG",
+      "name": "large mailer bags",
+      "aliases": [
+        "large mailers"
+      ],
+      "attributes": {
+        "color": "white",
+        "size": "large"
+      },
+      "bin": "D-02",
+      "available": 55,
+      "inventory_version": 1
+    },
+    {
+      "sku": "BG-SML",
+      "name": "small mailer bags",
+      "aliases": [
+        "small mailers"
+      ],
+      "attributes": {
+        "color": "white",
+        "size": "small"
+      },
+      "bin": "D-01",
+      "available": 75,
+      "inventory_version": 1
+    },
+    {
+      "sku": "BN-BLU",
+      "name": "blue storage bins",
+      "aliases": [
+        "blue bins"
+      ],
+      "attributes": {
+        "color": "blue",
+        "size": "standard"
+      },
+      "bin": "F-01",
+      "available": 12,
+      "inventory_version": 1
+    },
+    {
+      "sku": "BN-RED",
+      "name": "red storage bins",
+      "aliases": [
+        "red bins"
+      ],
+      "attributes": {
+        "color": "red",
+        "size": "standard"
+      },
+      "bin": "F-02",
+      "available": 10,
+      "inventory_version": 1
+    },
+    {
+      "sku": "CT-BLS",
+      "name": "small blue cartons",
+      "aliases": [
+        "small blue boxes"
+      ],
+      "attributes": {
+        "color": "blue",
+        "size": "small"
+      },
+      "bin": "A-02",
+      "available": 24,
+      "inventory_version": 1
+    },
+    {
+      "sku": "CT-BLU",
+      "name": "blue cartons",
+      "aliases": [
+        "blue boxes"
+      ],
+      "attributes": {
+        "color": "blue",
+        "size": "standard"
+      },
+      "bin": "A-03",
+      "available": 40,
+      "inventory_version": 1
+    },
+    {
+      "sku": "CT-GRN",
+      "name": "green cartons",
+      "aliases": [
+        "green boxes"
+      ],
+      "attributes": {
+        "color": "green",
+        "size": "standard"
+      },
+      "bin": "A-04",
+      "available": 0,
+      "inventory_version": 1
+    },
+    {
+      "sku": "CT-RDL",
+      "name": "large red cartons",
+      "aliases": [
+        "large red boxes"
+      ],
+      "attributes": {
+        "color": "red",
+        "size": "large"
+      },
+      "bin": "B-08",
+      "available": 18,
+      "inventory_version": 1
+    },
+    {
+      "sku": "CT-RED",
+      "name": "red cartons",
+      "aliases": [
+        "red boxes"
+      ],
+      "attributes": {
+        "color": "red",
+        "size": "standard"
+      },
+      "bin": "B-07",
+      "available": 28,
+      "inventory_version": 2
+    },
+    {
+      "sku": "CT-YEL",
+      "name": "yellow cartons",
+      "aliases": [
+        "yellow boxes"
+      ],
+      "attributes": {
+        "color": "yellow",
+        "size": "standard"
+      },
+      "bin": "A-05",
+      "available": 2,
+      "inventory_version": 1
+    },
+    {
+      "sku": "EN-PAD",
+      "name": "padded envelopes",
+      "aliases": [
+        "padded mailers"
+      ],
+      "attributes": {
+        "color": "brown",
+        "size": "standard"
+      },
+      "bin": "F-03",
+      "available": 80,
+      "inventory_version": 1
+    },
+    {
+      "sku": "GL-LRG",
+      "name": "large work gloves",
+      "aliases": [
+        "large gloves"
+      ],
+      "attributes": {
+        "color": "grey",
+        "size": "large"
+      },
+      "bin": "E-02",
+      "available": 28,
+      "inventory_version": 1
+    },
+    {
+      "sku": "GL-SML",
+      "name": "small work gloves",
+      "aliases": [
+        "small gloves"
+      ],
+      "attributes": {
+        "color": "grey",
+        "size": "small"
+      },
+      "bin": "E-01",
+      "available": 30,
+      "inventory_version": 1
+    },
+    {
+      "sku": "LB-FRG",
+      "name": "fragile labels",
+      "aliases": [
+        "fragile stickers"
+      ],
+      "attributes": {
+        "color": "red",
+        "size": "standard"
+      },
+      "bin": "C-04",
+      "available": 90,
+      "inventory_version": 1
+    },
+    {
+      "sku": "LB-WHT",
+      "name": "white shipping labels",
+      "aliases": [
+        "white labels"
+      ],
+      "attributes": {
+        "color": "white",
+        "size": "standard"
+      },
+      "bin": "C-03",
+      "available": 120,
+      "inventory_version": 1
+    },
+    {
+      "sku": "MK-BLK",
+      "name": "black marker pens",
+      "aliases": [
+        "black markers"
+      ],
+      "attributes": {
+        "color": "black",
+        "size": "standard"
+      },
+      "bin": "F-04",
+      "available": 36,
+      "inventory_version": 1
+    },
+    {
+      "sku": "TP-BRN",
+      "name": "brown packing tape",
+      "aliases": [
+        "brown tape"
+      ],
+      "attributes": {
+        "color": "brown",
+        "size": "standard"
+      },
+      "bin": "C-02",
+      "available": 45,
+      "inventory_version": 1
+    },
+    {
+      "sku": "TP-CLR",
+      "name": "clear packing tape",
+      "aliases": [
+        "clear tape"
+      ],
+      "attributes": {
+        "color": "clear",
+        "size": "standard"
+      },
+      "bin": "C-01",
+      "available": 60,
+      "inventory_version": 1
+    },
+    {
+      "sku": "WR-BBL",
+      "name": "bubble wrap rolls",
+      "aliases": [
+        "bubble wrap"
+      ],
+      "attributes": {
+        "color": "clear",
+        "size": "standard"
+      },
+      "bin": "D-03",
+      "available": 16,
+      "inventory_version": 1
+    },
+    {
+      "sku": "WR-STR",
+      "name": "stretch wrap rolls",
+      "aliases": [
+        "stretch wrap"
+      ],
+      "attributes": {
+        "color": "clear",
+        "size": "standard"
+      },
+      "bin": "D-04",
+      "available": 21,
+      "inventory_version": 1
+    }
+  ],
+  "history": [
+    {
+      "operation_id": "7e477828793c444cb910c01b286cac40",
+      "task_id": "0f9b9920162742fb953b247bd20a5656",
+      "session_id": "bd5312e4bc794f599219576235d64604",
+      "task_version": 2,
+      "sku": "CT-RED",
+      "quantity": 4,
+      "confirmation_id": "f7d50d861ff743639d431abe5b1f1dbc",
+      "utc": "2026-09-08T13:53:47.219835+00:00"
+    }
+  ],
+  "events": [
+    {
+      "type": "session_started",
+      "session_id": "bd5312e4bc794f599219576235d64604",
+      "utc": "2026-09-08T13:53:47.193010+00:00",
+      "monotonic_ms": 193137590.897041,
+      "clock_domain": "api-7d0a7e38bd3d40fa815c34a8ecdcf3c8",
+      "task_id": null,
+      "task_version": null,
+      "response_epoch": 0,
+      "data": {
+        "mode": "fixture",
+        "room": "pickmate-bd5312e4bc794f599219576235d64604",
+        "synthetic_inventory": true
+      },
+      "seq": 1
+    },
+    {
+      "type": "speech_generated",
+      "session_id": "bd5312e4bc794f599219576235d64604",
+      "utc": "2026-09-08T13:53:47.193028+00:00",
+      "monotonic_ms": 193137590.915333,
+      "clock_domain": "api-7d0a7e38bd3d40fa815c34a8ecdcf3c8",
+      "task_id": null,
+      "task_version": null,
+      "response_epoch": 0,
+      "data": {
+        "response_id": "11b8e9463c22498b864ff5891d1c9814",
+        "text": "Welcome to PickMate. What item and quantity do you need?",
+        "substantive": true
+      },
+      "seq": 2
+    },
+    {
+      "type": "speech_queued",
+      "session_id": "bd5312e4bc794f599219576235d64604",
+      "utc": "2026-09-08T13:53:47.193035+00:00",
+      "monotonic_ms": 193137590.921458,
+      "clock_domain": "api-7d0a7e38bd3d40fa815c34a8ecdcf3c8",
+      "task_id": null,
+      "task_version": null,
+      "response_epoch": 0,
+      "data": {
+        "response_id": "11b8e9463c22498b864ff5891d1c9814",
+        "text": "Welcome to PickMate. What item and quantity do you need?",
+        "substantive": true
+      },
+      "seq": 3
+    },
+    {
+      "type": "faults_configured",
+      "session_id": "bd5312e4bc794f599219576235d64604",
+      "utc": "2026-09-08T13:53:47.193379+00:00",
+      "monotonic_ms": 193137591.26675,
+      "clock_domain": "api-7d0a7e38bd3d40fa815c34a8ecdcf3c8",
+      "task_id": null,
+      "task_version": null,
+      "response_epoch": 0,
+      "data": {
+        "lookup_delay_ms": 104,
+        "ignore_cancellation": false,
+        "fail_provider": null
+      },
+      "seq": 4
+    },
+    {
+      "type": "user_speech_end",
+      "session_id": "bd5312e4bc794f599219576235d64604",
+      "utc": "2026-09-08T13:53:47.193733+00:00",
+      "monotonic_ms": 193137591.62,
+      "clock_domain": "api-7d0a7e38bd3d40fa815c34a8ecdcf3c8",
+      "task_id": null,
+      "task_version": null,
+      "response_epoch": 0,
+      "data": {
+        "source": "final_transcript_boundary"
+      },
+      "seq": 5
+    },
+    {
+      "type": "final_transcript",
+      "session_id": "bd5312e4bc794f599219576235d64604",
+      "utc": "2026-09-08T13:53:47.193746+00:00",
+      "monotonic_ms": 193137591.632583,
+      "clock_domain": "api-7d0a7e38bd3d40fa815c34a8ecdcf3c8",
+      "task_id": null,
+      "task_version": null,
+      "response_epoch": 0,
+      "data": {
+        "text": "Find six blue cartons",
+        "event_id": "initial"
+      },
+      "seq": 6
+    },
+    {
+      "type": "speech_stopped",
+      "session_id": "bd5312e4bc794f599219576235d64604",
+      "utc": "2026-09-08T13:53:47.193752+00:00",
+      "monotonic_ms": 193137591.639041,
+      "clock_domain": "api-7d0a7e38bd3d40fa815c34a8ecdcf3c8",
+      "task_id": null,
+      "task_version": null,
+      "response_epoch": 0,
+      "data": {
+        "response_id": "11b8e9463c22498b864ff5891d1c9814",
+        "reason": "interrupted",
+        "physical_audibility": "unverified"
+      },
+      "seq": 7
+    },
+    {
+      "type": "response_epoch_changed",
+      "session_id": "bd5312e4bc794f599219576235d64604",
+      "utc": "2026-09-08T13:53:47.193758+00:00",
+      "monotonic_ms": 193137591.644458,
+      "clock_domain": "api-7d0a7e38bd3d40fa815c34a8ecdcf3c8",
+      "task_id": null,
+      "task_version": null,
+      "response_epoch": 1,
+      "data": {},
+      "seq": 8
+    },
+    {
+      "type": "intent_accepted",
+      "session_id": "bd5312e4bc794f599219576235d64604",
+      "utc": "2026-09-08T13:53:47.194091+00:00",
+      "monotonic_ms": 193137591.978083,
+      "clock_domain": "api-7d0a7e38bd3d40fa815c34a8ecdcf3c8",
+      "task_id": null,
+      "task_version": null,
+      "response_epoch": 1,
+      "data": {
+        "normalized": {
+          "action": "request",
+          "query": "blue cartons",
+          "quantity": 6,
+          "explicit": false
+        },
+        "input_id": "initial"
+      },
+      "seq": 9
+    },
+    {
+      "type": "task_version_changed",
+      "session_id": "bd5312e4bc794f599219576235d64604",
+      "utc": "2026-09-08T13:53:47.194207+00:00",
+      "monotonic_ms": 193137592.0945,
+      "clock_domain": "api-7d0a7e38bd3d40fa815c34a8ecdcf3c8",
+      "task_id": "0f9b9920162742fb953b247bd20a5656",
+      "task_version": 1,
+      "response_epoch": 1,
+      "data": {},
+      "seq": 10
+    },
+    {
+      "type": "lookup_pending",
+      "session_id": "bd5312e4bc794f599219576235d64604",
+      "utc": "2026-09-08T13:53:47.194216+00:00",
+      "monotonic_ms": 193137592.10275,
+      "clock_domain": "api-7d0a7e38bd3d40fa815c34a8ecdcf3c8",
+      "task_id": "0f9b9920162742fb953b247bd20a5656",
+      "task_version": 1,
+      "response_epoch": 1,
+      "data": {
+        "tool_call_id": "57bec700139c4601bc23b8a4c9ae879c"
+      },
+      "seq": 11
+    },
+    {
+      "type": "speech_generated",
+      "session_id": "bd5312e4bc794f599219576235d64604",
+      "utc": "2026-09-08T13:53:47.194227+00:00",
+      "monotonic_ms": 193137592.11325,
+      "clock_domain": "api-7d0a7e38bd3d40fa815c34a8ecdcf3c8",
+      "task_id": "0f9b9920162742fb953b247bd20a5656",
+      "task_version": 1,
+      "response_epoch": 1,
+      "data": {
+        "response_id": "439a533478a5443bb0024a8cfbfd6f00",
+        "text": "Checking 6 blue cartons.",
+        "substantive": false
+      },
+      "seq": 12
+    },
+    {
+      "type": "speech_queued",
+      "session_id": "bd5312e4bc794f599219576235d64604",
+      "utc": "2026-09-08T13:53:47.194232+00:00",
+      "monotonic_ms": 193137592.118583,
+      "clock_domain": "api-7d0a7e38bd3d40fa815c34a8ecdcf3c8",
+      "task_id": "0f9b9920162742fb953b247bd20a5656",
+      "task_version": 1,
+      "response_epoch": 1,
+      "data": {
+        "response_id": "439a533478a5443bb0024a8cfbfd6f00",
+        "text": "Checking 6 blue cartons.",
+        "substantive": false
+      },
+      "seq": 13
+    },
+    {
+      "type": "lookup_started",
+      "session_id": "bd5312e4bc794f599219576235d64604",
+      "utc": "2026-09-08T13:53:47.194538+00:00",
+      "monotonic_ms": 193137592.425041,
+      "clock_domain": "api-7d0a7e38bd3d40fa815c34a8ecdcf3c8",
+      "task_id": "0f9b9920162742fb953b247bd20a5656",
+      "task_version": 1,
+      "response_epoch": 1,
+      "data": {
+        "tool_call_id": "57bec700139c4601bc23b8a4c9ae879c",
+        "result_task_version": 1
+      },
+      "seq": 14
+    },
+    {
+      "type": "user_speech_onset",
+      "session_id": "bd5312e4bc794f599219576235d64604",
+      "utc": "2026-09-08T13:53:47.214676+00:00",
+      "monotonic_ms": 193137612.563541,
+      "clock_domain": "api-7d0a7e38bd3d40fa815c34a8ecdcf3c8",
+      "task_id": "0f9b9920162742fb953b247bd20a5656",
+      "task_version": 1,
+      "response_epoch": 1,
+      "data": {},
+      "seq": 15
+    },
+    {
+      "type": "speech_stopped",
+      "session_id": "bd5312e4bc794f599219576235d64604",
+      "utc": "2026-09-08T13:53:47.214691+00:00",
+      "monotonic_ms": 193137612.577208,
+      "clock_domain": "api-7d0a7e38bd3d40fa815c34a8ecdcf3c8",
+      "task_id": "0f9b9920162742fb953b247bd20a5656",
+      "task_version": 1,
+      "response_epoch": 1,
+      "data": {
+        "response_id": "439a533478a5443bb0024a8cfbfd6f00",
+        "reason": "interrupted",
+        "physical_audibility": "unverified"
+      },
+      "seq": 16
+    },
+    {
+      "type": "faults_configured",
+      "session_id": "bd5312e4bc794f599219576235d64604",
+      "utc": "2026-09-08T13:53:47.215222+00:00",
+      "monotonic_ms": 193137613.109416,
+      "clock_domain": "api-7d0a7e38bd3d40fa815c34a8ecdcf3c8",
+      "task_id": "0f9b9920162742fb953b247bd20a5656",
+      "task_version": 1,
+      "response_epoch": 1,
+      "data": {
+        "lookup_delay_ms": 0,
+        "ignore_cancellation": false,
+        "fail_provider": null
+      },
+      "seq": 17
+    },
+    {
+      "type": "user_speech_end",
+      "session_id": "bd5312e4bc794f599219576235d64604",
+      "utc": "2026-09-08T13:53:47.215530+00:00",
+      "monotonic_ms": 193137613.416708,
+      "clock_domain": "api-7d0a7e38bd3d40fa815c34a8ecdcf3c8",
+      "task_id": "0f9b9920162742fb953b247bd20a5656",
+      "task_version": 1,
+      "response_epoch": 1,
+      "data": {
+        "source": "final_transcript_boundary"
+      },
+      "seq": 18
+    },
+    {
+      "type": "final_transcript",
+      "session_id": "bd5312e4bc794f599219576235d64604",
+      "utc": "2026-09-08T13:53:47.215541+00:00",
+      "monotonic_ms": 193137613.427625,
+      "clock_domain": "api-7d0a7e38bd3d40fa815c34a8ecdcf3c8",
+      "task_id": "0f9b9920162742fb953b247bd20a5656",
+      "task_version": 1,
+      "response_epoch": 1,
+      "data": {
+        "text": "Wait make that four red cartons",
+        "event_id": "correction"
+      },
+      "seq": 19
+    },
+    {
+      "type": "response_epoch_changed",
+      "session_id": "bd5312e4bc794f599219576235d64604",
+      "utc": "2026-09-08T13:53:47.215547+00:00",
+      "monotonic_ms": 193137613.433375,
+      "clock_domain": "api-7d0a7e38bd3d40fa815c34a8ecdcf3c8",
+      "task_id": "0f9b9920162742fb953b247bd20a5656",
+      "task_version": 1,
+      "response_epoch": 2,
+      "data": {},
+      "seq": 20
+    },
+    {
+      "type": "intent_accepted",
+      "session_id": "bd5312e4bc794f599219576235d64604",
+      "utc": "2026-09-08T13:53:47.215880+00:00",
+      "monotonic_ms": 193137613.767041,
+      "clock_domain": "api-7d0a7e38bd3d40fa815c34a8ecdcf3c8",
+      "task_id": "0f9b9920162742fb953b247bd20a5656",
+      "task_version": 1,
+      "response_epoch": 2,
+      "data": {
+        "normalized": {
+          "action": "request",
+          "query": "red cartons",
+          "quantity": 4,
+          "explicit": false
+        },
+        "input_id": "correction"
+      },
+      "seq": 21
+    },
+    {
+      "type": "task_version_changed",
+      "session_id": "bd5312e4bc794f599219576235d64604",
+      "utc": "2026-09-08T13:53:47.215988+00:00",
+      "monotonic_ms": 193137613.874375,
+      "clock_domain": "api-7d0a7e38bd3d40fa815c34a8ecdcf3c8",
+      "task_id": "0f9b9920162742fb953b247bd20a5656",
+      "task_version": 2,
+      "response_epoch": 2,
+      "data": {},
+      "seq": 22
+    },
+    {
+      "type": "lookup_pending",
+      "session_id": "bd5312e4bc794f599219576235d64604",
+      "utc": "2026-09-08T13:53:47.215998+00:00",
+      "monotonic_ms": 193137613.88425,
+      "clock_domain": "api-7d0a7e38bd3d40fa815c34a8ecdcf3c8",
+      "task_id": "0f9b9920162742fb953b247bd20a5656",
+      "task_version": 2,
+      "response_epoch": 2,
+      "data": {
+        "tool_call_id": "3082dc7aad8b43cab59beb7e8c0e7878"
+      },
+      "seq": 23
+    },
+    {
+      "type": "speech_generated",
+      "session_id": "bd5312e4bc794f599219576235d64604",
+      "utc": "2026-09-08T13:53:47.216008+00:00",
+      "monotonic_ms": 193137613.894291,
+      "clock_domain": "api-7d0a7e38bd3d40fa815c34a8ecdcf3c8",
+      "task_id": "0f9b9920162742fb953b247bd20a5656",
+      "task_version": 2,
+      "response_epoch": 2,
+      "data": {
+        "response_id": "cdd85aba5214487d991ca3f5e7d97a06",
+        "text": "Checking 4 red cartons.",
+        "substantive": false
+      },
+      "seq": 24
+    },
+    {
+      "type": "speech_queued",
+      "session_id": "bd5312e4bc794f599219576235d64604",
+      "utc": "2026-09-08T13:53:47.216013+00:00",
+      "monotonic_ms": 193137613.899583,
+      "clock_domain": "api-7d0a7e38bd3d40fa815c34a8ecdcf3c8",
+      "task_id": "0f9b9920162742fb953b247bd20a5656",
+      "task_version": 2,
+      "response_epoch": 2,
+      "data": {
+        "response_id": "cdd85aba5214487d991ca3f5e7d97a06",
+        "text": "Checking 4 red cartons.",
+        "substantive": false
+      },
+      "seq": 25
+    },
+    {
+      "type": "lookup_cancelled",
+      "session_id": "bd5312e4bc794f599219576235d64604",
+      "utc": "2026-09-08T13:53:47.216395+00:00",
+      "monotonic_ms": 193137614.281625,
+      "clock_domain": "api-7d0a7e38bd3d40fa815c34a8ecdcf3c8",
+      "task_id": "0f9b9920162742fb953b247bd20a5656",
+      "task_version": 2,
+      "response_epoch": 2,
+      "data": {
+        "tool_call_id": "57bec700139c4601bc23b8a4c9ae879c"
+      },
+      "seq": 26
+    },
+    {
+      "type": "lookup_started",
+      "session_id": "bd5312e4bc794f599219576235d64604",
+      "utc": "2026-09-08T13:53:47.217655+00:00",
+      "monotonic_ms": 193137615.542375,
+      "clock_domain": "api-7d0a7e38bd3d40fa815c34a8ecdcf3c8",
+      "task_id": "0f9b9920162742fb953b247bd20a5656",
+      "task_version": 2,
+      "response_epoch": 2,
+      "data": {
+        "tool_call_id": "3082dc7aad8b43cab59beb7e8c0e7878",
+        "result_task_version": 2
+      },
+      "seq": 27
+    },
+    {
+      "type": "lookup_completed",
+      "session_id": "bd5312e4bc794f599219576235d64604",
+      "utc": "2026-09-08T13:53:47.218203+00:00",
+      "monotonic_ms": 193137616.089458,
+      "clock_domain": "api-7d0a7e38bd3d40fa815c34a8ecdcf3c8",
+      "task_id": "0f9b9920162742fb953b247bd20a5656",
+      "task_version": 2,
+      "response_epoch": 2,
+      "data": {
+        "tool_call_id": "3082dc7aad8b43cab59beb7e8c0e7878",
+        "result_task_version": 2,
+        "duration_ms": 0.2159580180887133
+      },
+      "seq": 28
+    },
+    {
+      "type": "speech_stopped",
+      "session_id": "bd5312e4bc794f599219576235d64604",
+      "utc": "2026-09-08T13:53:47.218230+00:00",
+      "monotonic_ms": 193137616.116666,
+      "clock_domain": "api-7d0a7e38bd3d40fa815c34a8ecdcf3c8",
+      "task_id": "0f9b9920162742fb953b247bd20a5656",
+      "task_version": 2,
+      "response_epoch": 2,
+      "data": {
+        "response_id": "cdd85aba5214487d991ca3f5e7d97a06",
+        "reason": "interrupted",
+        "physical_audibility": "unverified"
+      },
+      "seq": 29
+    },
+    {
+      "type": "speech_generated",
+      "session_id": "bd5312e4bc794f599219576235d64604",
+      "utc": "2026-09-08T13:53:47.218242+00:00",
+      "monotonic_ms": 193137616.128708,
+      "clock_domain": "api-7d0a7e38bd3d40fa815c34a8ecdcf3c8",
+      "task_id": "0f9b9920162742fb953b247bd20a5656",
+      "task_version": 2,
+      "response_epoch": 2,
+      "data": {
+        "response_id": "11853ddc36ed4b81acbde358a8e709e1",
+        "text": "Pick 4 red cartons from aisle B, bin 7. Tell me when you have them.",
+        "substantive": true
+      },
+      "seq": 30
+    },
+    {
+      "type": "speech_queued",
+      "session_id": "bd5312e4bc794f599219576235d64604",
+      "utc": "2026-09-08T13:53:47.218248+00:00",
+      "monotonic_ms": 193137616.134666,
+      "clock_domain": "api-7d0a7e38bd3d40fa815c34a8ecdcf3c8",
+      "task_id": "0f9b9920162742fb953b247bd20a5656",
+      "task_version": 2,
+      "response_epoch": 2,
+      "data": {
+        "response_id": "11853ddc36ed4b81acbde358a8e709e1",
+        "text": "Pick 4 red cartons from aisle B, bin 7. Tell me when you have them.",
+        "substantive": true
+      },
+      "seq": 31
+    },
+    {
+      "type": "user_speech_end",
+      "session_id": "bd5312e4bc794f599219576235d64604",
+      "utc": "2026-09-08T13:53:47.218614+00:00",
+      "monotonic_ms": 193137616.501208,
+      "clock_domain": "api-7d0a7e38bd3d40fa815c34a8ecdcf3c8",
+      "task_id": "0f9b9920162742fb953b247bd20a5656",
+      "task_version": 2,
+      "response_epoch": 2,
+      "data": {
+        "source": "final_transcript_boundary"
+      },
+      "seq": 32
+    },
+    {
+      "type": "final_transcript",
+      "session_id": "bd5312e4bc794f599219576235d64604",
+      "utc": "2026-09-08T13:53:47.218646+00:00",
+      "monotonic_ms": 193137616.53325,
+      "clock_domain": "api-7d0a7e38bd3d40fa815c34a8ecdcf3c8",
+      "task_id": "0f9b9920162742fb953b247bd20a5656",
+      "task_version": 2,
+      "response_epoch": 2,
+      "data": {
+        "text": "I picked them",
+        "event_id": "complete"
+      },
+      "seq": 33
+    },
+    {
+      "type": "speech_stopped",
+      "session_id": "bd5312e4bc794f599219576235d64604",
+      "utc": "2026-09-08T13:53:47.218653+00:00",
+      "monotonic_ms": 193137616.5395,
+      "clock_domain": "api-7d0a7e38bd3d40fa815c34a8ecdcf3c8",
+      "task_id": "0f9b9920162742fb953b247bd20a5656",
+      "task_version": 2,
+      "response_epoch": 2,
+      "data": {
+        "response_id": "11853ddc36ed4b81acbde358a8e709e1",
+        "reason": "interrupted",
+        "physical_audibility": "unverified"
+      },
+      "seq": 34
+    },
+    {
+      "type": "response_epoch_changed",
+      "session_id": "bd5312e4bc794f599219576235d64604",
+      "utc": "2026-09-08T13:53:47.218658+00:00",
+      "monotonic_ms": 193137616.544916,
+      "clock_domain": "api-7d0a7e38bd3d40fa815c34a8ecdcf3c8",
+      "task_id": "0f9b9920162742fb953b247bd20a5656",
+      "task_version": 2,
+      "response_epoch": 3,
+      "data": {},
+      "seq": 35
+    },
+    {
+      "type": "intent_accepted",
+      "session_id": "bd5312e4bc794f599219576235d64604",
+      "utc": "2026-09-08T13:53:47.219071+00:00",
+      "monotonic_ms": 193137616.957458,
+      "clock_domain": "api-7d0a7e38bd3d40fa815c34a8ecdcf3c8",
+      "task_id": "0f9b9920162742fb953b247bd20a5656",
+      "task_version": 2,
+      "response_epoch": 3,
+      "data": {
+        "normalized": {
+          "action": "complete",
+          "query": null,
+          "quantity": null,
+          "explicit": false
+        },
+        "input_id": "complete"
+      },
+      "seq": 36
+    },
+    {
+      "type": "speech_generated",
+      "session_id": "bd5312e4bc794f599219576235d64604",
+      "utc": "2026-09-08T13:53:47.219096+00:00",
+      "monotonic_ms": 193137616.983041,
+      "clock_domain": "api-7d0a7e38bd3d40fa815c34a8ecdcf3c8",
+      "task_id": "0f9b9920162742fb953b247bd20a5656",
+      "task_version": 2,
+      "response_epoch": 3,
+      "data": {
+        "response_id": "7e9f77e8db19488d9c1f0022cebe8574",
+        "text": "Record 4 red cartons?",
+        "substantive": true
+      },
+      "seq": 37
+    },
+    {
+      "type": "speech_queued",
+      "session_id": "bd5312e4bc794f599219576235d64604",
+      "utc": "2026-09-08T13:53:47.219103+00:00",
+      "monotonic_ms": 193137616.989541,
+      "clock_domain": "api-7d0a7e38bd3d40fa815c34a8ecdcf3c8",
+      "task_id": "0f9b9920162742fb953b247bd20a5656",
+      "task_version": 2,
+      "response_epoch": 3,
+      "data": {
+        "response_id": "7e9f77e8db19488d9c1f0022cebe8574",
+        "text": "Record 4 red cartons?",
+        "substantive": true
+      },
+      "seq": 38
+    },
+    {
+      "type": "confirmation_created",
+      "session_id": "bd5312e4bc794f599219576235d64604",
+      "utc": "2026-09-08T13:53:47.219114+00:00",
+      "monotonic_ms": 193137617.000375,
+      "clock_domain": "api-7d0a7e38bd3d40fa815c34a8ecdcf3c8",
+      "task_id": "0f9b9920162742fb953b247bd20a5656",
+      "task_version": 2,
+      "response_epoch": 3,
+      "data": {
+        "confirmation_id": "0a52ac300f50456fbc3c4c0aa10b03ce",
+        "response_id": "7e9f77e8db19488d9c1f0022cebe8574"
+      },
+      "seq": 39
+    },
+    {
+      "type": "user_speech_end",
+      "session_id": "bd5312e4bc794f599219576235d64604",
+      "utc": "2026-09-08T13:53:47.219417+00:00",
+      "monotonic_ms": 193137617.303916,
+      "clock_domain": "api-7d0a7e38bd3d40fa815c34a8ecdcf3c8",
+      "task_id": "0f9b9920162742fb953b247bd20a5656",
+      "task_version": 2,
+      "response_epoch": 3,
+      "data": {
+        "source": "final_transcript_boundary"
+      },
+      "seq": 40
+    },
+    {
+      "type": "final_transcript",
+      "session_id": "bd5312e4bc794f599219576235d64604",
+      "utc": "2026-09-08T13:53:47.219429+00:00",
+      "monotonic_ms": 193137617.316,
+      "clock_domain": "api-7d0a7e38bd3d40fa815c34a8ecdcf3c8",
+      "task_id": "0f9b9920162742fb953b247bd20a5656",
+      "task_version": 2,
+      "response_epoch": 3,
+      "data": {
+        "text": "Confirm four red cartons",
+        "event_id": "confirm"
+      },
+      "seq": 41
+    },
+    {
+      "type": "speech_stopped",
+      "session_id": "bd5312e4bc794f599219576235d64604",
+      "utc": "2026-09-08T13:53:47.219436+00:00",
+      "monotonic_ms": 193137617.32225,
+      "clock_domain": "api-7d0a7e38bd3d40fa815c34a8ecdcf3c8",
+      "task_id": "0f9b9920162742fb953b247bd20a5656",
+      "task_version": 2,
+      "response_epoch": 3,
+      "data": {
+        "response_id": "7e9f77e8db19488d9c1f0022cebe8574",
+        "reason": "interrupted",
+        "physical_audibility": "unverified"
+      },
+      "seq": 42
+    },
+    {
+      "type": "confirmation_invalidated",
+      "session_id": "bd5312e4bc794f599219576235d64604",
+      "utc": "2026-09-08T13:53:47.219441+00:00",
+      "monotonic_ms": 193137617.327291,
+      "clock_domain": "api-7d0a7e38bd3d40fa815c34a8ecdcf3c8",
+      "task_id": "0f9b9920162742fb953b247bd20a5656",
+      "task_version": 2,
+      "response_epoch": 3,
+      "data": {
+        "confirmation_id": "0a52ac300f50456fbc3c4c0aa10b03ce"
+      },
+      "seq": 43
+    },
+    {
+      "type": "response_epoch_changed",
+      "session_id": "bd5312e4bc794f599219576235d64604",
+      "utc": "2026-09-08T13:53:47.219446+00:00",
+      "monotonic_ms": 193137617.332708,
+      "clock_domain": "api-7d0a7e38bd3d40fa815c34a8ecdcf3c8",
+      "task_id": "0f9b9920162742fb953b247bd20a5656",
+      "task_version": 2,
+      "response_epoch": 4,
+      "data": {},
+      "seq": 44
+    },
+    {
+      "type": "intent_accepted",
+      "session_id": "bd5312e4bc794f599219576235d64604",
+      "utc": "2026-09-08T13:53:47.219780+00:00",
+      "monotonic_ms": 193137617.667291,
+      "clock_domain": "api-7d0a7e38bd3d40fa815c34a8ecdcf3c8",
+      "task_id": "0f9b9920162742fb953b247bd20a5656",
+      "task_version": 2,
+      "response_epoch": 4,
+      "data": {
+        "normalized": {
+          "action": "confirm",
+          "query": "red cartons",
+          "quantity": 4,
+          "explicit": true
+        },
+        "input_id": "confirm"
+      },
+      "seq": 45
+    },
+    {
+      "type": "write_attempted",
+      "session_id": "bd5312e4bc794f599219576235d64604",
+      "utc": "2026-09-08T13:53:47.219816+00:00",
+      "monotonic_ms": 193137617.702958,
+      "clock_domain": "api-7d0a7e38bd3d40fa815c34a8ecdcf3c8",
+      "task_id": "0f9b9920162742fb953b247bd20a5656",
+      "task_version": 2,
+      "response_epoch": 4,
+      "data": {
+        "operation_id": "7e477828793c444cb910c01b286cac40",
+        "confirmation_id": "f7d50d861ff743639d431abe5b1f1dbc"
+      },
+      "seq": 46
+    },
+    {
+      "type": "write_committed",
+      "session_id": "bd5312e4bc794f599219576235d64604",
+      "utc": "2026-09-08T13:53:47.219845+00:00",
+      "monotonic_ms": 193137617.731916,
+      "clock_domain": "api-7d0a7e38bd3d40fa815c34a8ecdcf3c8",
+      "task_id": "0f9b9920162742fb953b247bd20a5656",
+      "task_version": 2,
+      "response_epoch": 4,
+      "data": {
+        "operation_id": "7e477828793c444cb910c01b286cac40",
+        "sku": "CT-RED",
+        "quantity": 4,
+        "confirmation_id": "f7d50d861ff743639d431abe5b1f1dbc"
+      },
+      "seq": 47
+    },
+    {
+      "type": "speech_generated",
+      "session_id": "bd5312e4bc794f599219576235d64604",
+      "utc": "2026-09-08T13:53:47.219856+00:00",
+      "monotonic_ms": 193137617.742958,
+      "clock_domain": "api-7d0a7e38bd3d40fa815c34a8ecdcf3c8",
+      "task_id": "0f9b9920162742fb953b247bd20a5656",
+      "task_version": 2,
+      "response_epoch": 4,
+      "data": {
+        "response_id": "6139a174652f44a695ab1e9d9c6c1d7e",
+        "text": "Recorded 4 red cartons. Your pick is complete.",
+        "substantive": true
+      },
+      "seq": 48
+    },
+    {
+      "type": "speech_queued",
+      "session_id": "bd5312e4bc794f599219576235d64604",
+      "utc": "2026-09-08T13:53:47.219862+00:00",
+      "monotonic_ms": 193137617.748333,
+      "clock_domain": "api-7d0a7e38bd3d40fa815c34a8ecdcf3c8",
+      "task_id": "0f9b9920162742fb953b247bd20a5656",
+      "task_version": 2,
+      "response_epoch": 4,
+      "data": {
+        "response_id": "6139a174652f44a695ab1e9d9c6c1d7e",
+        "text": "Recorded 4 red cartons. Your pick is complete.",
+        "substantive": true
+      },
+      "seq": 49
+    },
+    {
+      "type": "input_replay_rejected",
+      "session_id": "bd5312e4bc794f599219576235d64604",
+      "utc": "2026-09-08T13:53:47.220161+00:00",
+      "monotonic_ms": 193137618.048166,
+      "clock_domain": "api-7d0a7e38bd3d40fa815c34a8ecdcf3c8",
+      "task_id": "0f9b9920162742fb953b247bd20a5656",
+      "task_version": 2,
+      "response_epoch": 4,
+      "data": {
+        "event_id": "confirm"
+      },
+      "seq": 50
+    },
+    {
+      "type": "speech_stopped",
+      "session_id": "bd5312e4bc794f599219576235d64604",
+      "utc": "2026-09-08T13:53:47.220415+00:00",
+      "monotonic_ms": 193137618.302083,
+      "clock_domain": "api-7d0a7e38bd3d40fa815c34a8ecdcf3c8",
+      "task_id": "0f9b9920162742fb953b247bd20a5656",
+      "task_version": 2,
+      "response_epoch": 4,
+      "data": {
+        "response_id": "6139a174652f44a695ab1e9d9c6c1d7e",
+        "reason": "interrupted",
+        "physical_audibility": "unverified"
+      },
+      "seq": 51
+    },
+    {
+      "type": "response_epoch_changed",
+      "session_id": "bd5312e4bc794f599219576235d64604",
+      "utc": "2026-09-08T13:53:47.220429+00:00",
+      "monotonic_ms": 193137618.316125,
+      "clock_domain": "api-7d0a7e38bd3d40fa815c34a8ecdcf3c8",
+      "task_id": "0f9b9920162742fb953b247bd20a5656",
+      "task_version": 2,
+      "response_epoch": 5,
+      "data": {},
+      "seq": 52
+    },
+    {
+      "type": "speech_generated",
+      "session_id": "bd5312e4bc794f599219576235d64604",
+      "utc": "2026-09-08T13:53:47.220443+00:00",
+      "monotonic_ms": 193137618.32975,
+      "clock_domain": "api-7d0a7e38bd3d40fa815c34a8ecdcf3c8",
+      "task_id": "0f9b9920162742fb953b247bd20a5656",
+      "task_version": 2,
+      "response_epoch": 5,
+      "data": {
+        "response_id": "0e849c0e6b6e4bd7b421e6db7b57b42a",
+        "text": "Already recorded 4 red cartons. Inventory was updated once.",
+        "substantive": true
+      },
+      "seq": 53
+    },
+    {
+      "type": "speech_queued",
+      "session_id": "bd5312e4bc794f599219576235d64604",
+      "utc": "2026-09-08T13:53:47.220449+00:00",
+      "monotonic_ms": 193137618.335916,
+      "clock_domain": "api-7d0a7e38bd3d40fa815c34a8ecdcf3c8",
+      "task_id": "0f9b9920162742fb953b247bd20a5656",
+      "task_version": 2,
+      "response_epoch": 5,
+      "data": {
+        "response_id": "0e849c0e6b6e4bd7b421e6db7b57b42a",
+        "text": "Already recorded 4 red cartons. Inventory was updated once.",
+        "substantive": true
+      },
+      "seq": 54
+    },
+    {
+      "type": "session_recovered",
+      "session_id": "bd5312e4bc794f599219576235d64604",
+      "utc": "2026-09-08T13:53:47.220455+00:00",
+      "monotonic_ms": 193137618.341166,
+      "clock_domain": "api-7d0a7e38bd3d40fa815c34a8ecdcf3c8",
+      "task_id": "0f9b9920162742fb953b247bd20a5656",
+      "task_version": 2,
+      "response_epoch": 5,
+      "data": {
+        "durable_outcome_preserved": true
+      },
+      "seq": 55
+    },
+    {
+      "type": "control_applied",
+      "session_id": "bd5312e4bc794f599219576235d64604",
+      "utc": "2026-09-08T13:53:47.220459+00:00",
+      "monotonic_ms": 193137618.346083,
+      "clock_domain": "api-7d0a7e38bd3d40fa815c34a8ecdcf3c8",
+      "task_id": "0f9b9920162742fb953b247bd20a5656",
+      "task_version": 2,
+      "response_epoch": 5,
+      "data": {
+        "action": "recover"
+      },
+      "seq": 56
+    },
+    {
+      "type": "user_speech_end",
+      "session_id": "bd5312e4bc794f599219576235d64604",
+      "utc": "2026-09-08T13:53:47.220735+00:00",
+      "monotonic_ms": 193137618.622083,
+      "clock_domain": "api-7d0a7e38bd3d40fa815c34a8ecdcf3c8",
+      "task_id": "0f9b9920162742fb953b247bd20a5656",
+      "task_version": 2,
+      "response_epoch": 5,
+      "data": {
+        "source": "final_transcript_boundary"
+      },
+      "seq": 57
+    },
+    {
+      "type": "final_transcript",
+      "session_id": "bd5312e4bc794f599219576235d64604",
+      "utc": "2026-09-08T13:53:47.220747+00:00",
+      "monotonic_ms": 193137618.634125,
+      "clock_domain": "api-7d0a7e38bd3d40fa815c34a8ecdcf3c8",
+      "task_id": "0f9b9920162742fb953b247bd20a5656",
+      "task_version": 2,
+      "response_epoch": 5,
+      "data": {
+        "text": "I picked them",
+        "event_id": "reconnect"
+      },
+      "seq": 58
+    },
+    {
+      "type": "speech_stopped",
+      "session_id": "bd5312e4bc794f599219576235d64604",
+      "utc": "2026-09-08T13:53:47.220754+00:00",
+      "monotonic_ms": 193137618.640041,
+      "clock_domain": "api-7d0a7e38bd3d40fa815c34a8ecdcf3c8",
+      "task_id": "0f9b9920162742fb953b247bd20a5656",
+      "task_version": 2,
+      "response_epoch": 5,
+      "data": {
+        "response_id": "0e849c0e6b6e4bd7b421e6db7b57b42a",
+        "reason": "interrupted",
+        "physical_audibility": "unverified"
+      },
+      "seq": 59
+    },
+    {
+      "type": "response_epoch_changed",
+      "session_id": "bd5312e4bc794f599219576235d64604",
+      "utc": "2026-09-08T13:53:47.220759+00:00",
+      "monotonic_ms": 193137618.645166,
+      "clock_domain": "api-7d0a7e38bd3d40fa815c34a8ecdcf3c8",
+      "task_id": "0f9b9920162742fb953b247bd20a5656",
+      "task_version": 2,
+      "response_epoch": 6,
+      "data": {},
+      "seq": 60
+    },
+    {
+      "type": "intent_accepted",
+      "session_id": "bd5312e4bc794f599219576235d64604",
+      "utc": "2026-09-08T13:53:47.221073+00:00",
+      "monotonic_ms": 193137618.959541,
+      "clock_domain": "api-7d0a7e38bd3d40fa815c34a8ecdcf3c8",
+      "task_id": "0f9b9920162742fb953b247bd20a5656",
+      "task_version": 2,
+      "response_epoch": 6,
+      "data": {
+        "normalized": {
+          "action": "complete",
+          "query": null,
+          "quantity": null,
+          "explicit": false
+        },
+        "input_id": "reconnect"
+      },
+      "seq": 61
+    },
+    {
+      "type": "speech_generated",
+      "session_id": "bd5312e4bc794f599219576235d64604",
+      "utc": "2026-09-08T13:53:47.221091+00:00",
+      "monotonic_ms": 193137618.977791,
+      "clock_domain": "api-7d0a7e38bd3d40fa815c34a8ecdcf3c8",
+      "task_id": "0f9b9920162742fb953b247bd20a5656",
+      "task_version": 2,
+      "response_epoch": 6,
+      "data": {
+        "response_id": "f16812f6c65b49ba8dccb2d12e9c4930",
+        "text": "Already recorded 4 red cartons. Inventory was updated once.",
+        "substantive": true
+      },
+      "seq": 62
+    },
+    {
+      "type": "speech_queued",
+      "session_id": "bd5312e4bc794f599219576235d64604",
+      "utc": "2026-09-08T13:53:47.221097+00:00",
+      "monotonic_ms": 193137618.983875,
+      "clock_domain": "api-7d0a7e38bd3d40fa815c34a8ecdcf3c8",
+      "task_id": "0f9b9920162742fb953b247bd20a5656",
+      "task_version": 2,
+      "response_epoch": 6,
+      "data": {
+        "response_id": "f16812f6c65b49ba8dccb2d12e9c4930",
+        "text": "Already recorded 4 red cartons. Inventory was updated once.",
+        "substantive": true
+      },
+      "seq": 63
+    }
+  ],
+  "revision": 63
+}

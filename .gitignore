@@ -16,3 +16,7 @@ data/
 evidence/recordings/*
 !evidence/recordings/.gitkeep
 .DS_Store
+*.ses
+*.tsbuildinfo
+web/vite.config.js
+web/vite.config.d.ts
