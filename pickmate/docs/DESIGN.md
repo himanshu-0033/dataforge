@@ -28,3 +28,7 @@ Calculated solid-color contrast: paper/navy **12.20:1** and paper/crimson **4.58
 Run `make test-web` and `make test-browser`. Browser checks exercise the actual fixture API and SQLite database; they also verify local font loading and horizontal overflow on the welcome and task screens. Screenshots are written to `web/test-results/`. The final 2026-09-08 run passed six unit tests, six browser tests, and the production build; [saved output and screenshots](../evidence/browser/design-20260908/README.md) include additional 320, 768, and 1440 px layout checks.
 
 The visual change does not establish any new live-audio performance claim. Rime, Groq, microphone input, interruption correctness, and confirmation authorization remain governed by the existing voice/controller implementation and its separate evidence.
+
+## Integration with Heard
+
+Heard stays at `/` with its own entry and styles. The PickMate design loads from `/pickmate.html`; its page alone preloads the local fonts. Both HTML entries are included in the production build. The default development API proxy points to port 8000, so launch the API for the app being demonstrated.

@@ -13,7 +13,7 @@ make install
 cp .env.example .env     # only when .env does not already exist
 make seed               # migrates and seeds; never resets existing stock
 make api                # terminal 1: http://127.0.0.1:8000
-make web                # terminal 2: http://localhost:5173
+make web                # terminal 2: http://localhost:5173/pickmate.html
 ```
 
 Open the web URL, choose **Fixture**, and start a session. Type `Find six blue cartons`, then `I picked them` and `Confirm six blue cartons`. A repeated confirmation returns the durable outcome. Use the Developer panel to set a five-second lookup delay and return a result after cancellation; correct to `Wait make that four red cartons` while the lookup runs.
@@ -92,3 +92,9 @@ For hosting, serve the frontend over HTTPS and use a secure LiveKit URL; localho
 - [Catalog positioning review](docs/POSITIONING.md)
 
 `Rime PS.pdf` and the organizer checker were not supplied/found, so brief reconciliation and the organizer gate remain pending. The public project catalog was reviewed; no uniqueness claim is made. Live STT/LLM/Rime session validation, operator recording, region selection, physical audible-stop measurements and deployment remain pending unless subsequently recorded in the evidence manifest.
+
+## Shared frontend with Heard
+
+The repository home page `/` opens Heard. PickMate has a separate entry at `/pickmate.html`; both are included in `npm run build`, with their own styles and page metadata. Run the PickMate commands above and open **http://127.0.0.1:5173/pickmate.html** for inventory picking.
+
+The default `/api` proxy uses port 8000. Run the API for the selected application: `make api` for PickMate, or the counselor startup command for Heard. These defaults run one application API at a time. Separate origins/API configuration are needed to serve both workflows concurrently. See [design decisions](docs/DESIGN.md) and [merge verification](evidence/browser/merge-20260908/README.md).

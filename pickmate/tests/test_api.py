@@ -14,7 +14,19 @@ from pickmate.storage.database import Database
 async def http(tmp_path):
     c = Controller(Database(tmp_path / "api.sqlite"))
     await c.initialize()
-    app = create_app(Settings(_env_file=None), c)
+    # Worker-module collection can load .env into the process. This fixture
+    # deliberately tests an unconfigured server, regardless of test order.
+    cfg = Settings(
+        _env_file=None,
+        livekit_url="",
+        livekit_api_key="",
+        livekit_api_secret="",
+        rime_api_key="",
+        deepgram_api_key="",
+        groq_api_key="",
+        worker_secret="",
+    )
+    app = create_app(cfg, c)
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
         yield client, c
     await c.close()

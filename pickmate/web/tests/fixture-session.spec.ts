@@ -2,7 +2,7 @@ import { expect, test, type Page, type APIRequestContext } from '@playwright/tes
 const apiRoot = 'http://127.0.0.1:8001';
 test.beforeEach(async ({ request }) => { expect((await request.get(`${apiRoot}/api/health`)).ok()).toBeTruthy(); });
 async function start(page: Page, captureWelcome = false) {
-  await page.goto('/#main');
+  await page.goto('/pickmate.html#main');
   if (captureWelcome) {
     await expect(page.getByRole('button', { name: 'Start session', exact: true })).toBeEnabled();
     await page.evaluate(() => document.fonts.ready.then(() => undefined));
@@ -120,7 +120,7 @@ test('slow requests show progress and block duplicate actions', async ({ page })
   let releaseHealth!: () => void;
   const healthGate = new Promise<void>(resolve => { releaseHealth = resolve; });
   await page.route('**/api/health', async route => { await healthGate; await route.continue(); });
-  await page.goto('/', { waitUntil: 'domcontentloaded' });
+  await page.goto('/pickmate.html', { waitUntil: 'domcontentloaded' });
   await expect(page.getByRole('status', { name: 'Loading session modes' })).toBeVisible();
   await expect(page.locator('.primary.start .inline-spinner')).toBeVisible();
   releaseHealth();

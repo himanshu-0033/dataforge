@@ -6,8 +6,9 @@ from livekit import api
 
 
 class Dispatcher:
-    def __init__(self, settings):
+    def __init__(self, settings, agent_name="pickmate"):
         self.settings = settings
+        self.agent_name = agent_name
         self.locks = {}
         self.replacements = {}
 
@@ -26,7 +27,7 @@ class Dispatcher:
                         )
                     )
                     dispatches = await client.agent_dispatch.list_dispatch(room)
-                    own = [d for d in dispatches if d.agent_name == "pickmate"]
+                    own = [d for d in dispatches if d.agent_name == self.agent_name]
                     # An existing pending/running dispatch survives ordinary reconnects.
                     alive = [
                         d
@@ -46,6 +47,6 @@ class Dispatcher:
                     for old in own:
                         await client.agent_dispatch.delete_dispatch(old.id, room)
                     created = await client.agent_dispatch.create_dispatch(
-                        api.CreateAgentDispatchRequest(room=room, agent_name="pickmate")
+                        api.CreateAgentDispatchRequest(room=room, agent_name=self.agent_name)
                     )
                     self.replacements[room] = (session["worker_epoch"], created.id)

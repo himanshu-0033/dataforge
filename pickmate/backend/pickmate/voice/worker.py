@@ -13,6 +13,7 @@ from livekit import agents
 from livekit.agents import Agent, AgentServer, AgentSession, StopResponse, room_io
 from livekit.agents.voice.agent_session import SessionConnectOptions
 from livekit.plugins import deepgram, silero
+from livekit.plugins import rime as _rime  # noqa: F401 -- register before Windows job threads start
 
 from .providers import RimeConfig, error_category
 
@@ -281,7 +282,7 @@ class Bridge:
 class PickingAgent(Agent):
     def __init__(self, bridge):
         super().__init__(
-            instructions="Relay final inventory speech to the validated workflow controller. Never generate autonomous responses."
+            instructions="Relay final user speech to the application conversation controller. Never generate autonomous responses."
         )
         self.bridge = bridge
 
@@ -292,12 +293,16 @@ class PickingAgent(Agent):
         raise StopResponse()
 
 
-@server.rtc_session(agent_name="pickmate")
+@server.rtc_session(agent_name=os.getenv("LIVEKIT_AGENT_NAME", "pickmate"))
 async def entrypoint(ctx: agents.JobContext):
+    # Override cloud recording defaults before any counselor session initialization.
+    if os.getenv("LIVEKIT_AGENT_NAME") == "heard":
+        ctx.init_recording({"audio": False, "traces": False, "logs": False, "transcript": False})
     room = ctx.room.name
-    if not re.fullmatch(r"pickmate-[a-f0-9]{32}", room):
+    prefix = os.getenv("LIVEKIT_ROOM_PREFIX", "pickmate") + "-"
+    if not re.fullmatch(re.escape(prefix) + r"[a-f0-9]{32}", room):
         raise ValueError("Unexpected room binding")
-    sid = room.removeprefix("pickmate-")
+    sid = room.removeprefix(prefix)
     await ctx.connect()
     participant = await asyncio.wait_for(ctx.wait_for_participant(identity=f"worker-{sid}"), timeout=30)
     async with httpx.AsyncClient(timeout=5) as http:
@@ -392,6 +397,7 @@ async def entrypoint(ctx: agents.JobContext):
                 agent=PickingAgent(bridge),
                 room=ctx.room,
                 room_options=room_io.RoomOptions(participant_identity=participant.identity, text_input=False),
+                record=False,
             )
             await bridge.recover()
             await bridge.poll()

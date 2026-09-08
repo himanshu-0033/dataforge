@@ -1,4 +1,10 @@
-# Heard Ledger — interruption and recovery with Rime
+# Heard — AI support
+
+The main app is now the **virtual counselor conversation experience**, using Groq for replies and LiveKit, Deepgram, and Rime for voice. Start it with `.\start-counselor.ps1 -Restart` and open **http://localhost:5173**. It supports natural conversation, a readable transcript, and typed input while voice is paused or unavailable. See [counselor setup and behavior](docs/COUNSELOR.md).
+
+The documentation below describes the earlier root browser prototype.
+
+## Earlier Heard Ledger prototype
 
 A browser voice-triage **prototype** that keeps conversation history aligned with completed audio segments. When a caller interrupts, the application stops playback, invalidates old work, captures the correction, and responds to the updated request.
 
@@ -143,3 +149,7 @@ Create a session with `POST /api/reset {mode}`. Other operations require its `se
 ## Repository
 
 `server.py`, `ledger.py`, `rime.py`, and `static/` implement the prototype. `test_workflow.py` contains regression tests. `eval.py` contains synthetic fixtures and A/B checks. `preflight.py` validates the configured Rime path. `RIME_EVIDENCE.md` tracks submission evidence. `research-brief.tex` is a historical planning document; its earlier phone/booking/LLM plans are not implemented capabilities.
+
+### PickMate inventory assistant
+
+The redesigned PickMate remains runnable at `/pickmate.html`. Follow [PickMate setup](pickmate/README.md) to start its inventory API and worker. Heard remains the default home page; each app has a separate frontend entry and stylesheet. The default launch commands select one API on port 8000 at a time.
