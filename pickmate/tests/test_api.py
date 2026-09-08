@@ -15,9 +15,10 @@ async def http(tmp_path):
     c = Controller(Database(tmp_path / "api.sqlite"))
     await c.initialize()
     # Worker-module collection can load .env into the process. This fixture
-    # deliberately tests an unconfigured server, regardless of test order.
+    # deliberately tests an unconfigured demo server, regardless of test order.
     cfg = Settings(
         _env_file=None,
+        demo_enabled=True,
         livekit_url="",
         livekit_api_key="",
         livekit_api_secret="",
@@ -34,7 +35,9 @@ async def http(tmp_path):
 
 async def test_session_ownership_and_fixture_flow(http):
     client, c = http
-    created = (await client.post("/api/sessions", json={"mode": "fixture"})).json()
+    response = await client.post("/api/sessions", json={"mode": "fixture"})
+    assert response.status_code == 200, response.text
+    created = response.json()
     route = "/api/sessions/" + created["session_id"]
     auth = {"Authorization": "Bearer " + created["token"]}
     assert (await client.get(route)).status_code == 401
