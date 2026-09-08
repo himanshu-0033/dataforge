@@ -60,6 +60,33 @@ async def test_missing_live_credentials_and_internal_auth(http):
     assert (await client.get("/api/health")).json()["live_ready"] is False
 
 
+async def test_live_readiness_requires_groq_and_initializes_groq_without_openai(tmp_path, monkeypatch):
+    for key in ("GROQ_API_KEY", "OPENAI_API_KEY"):
+        monkeypatch.delenv(key, raising=False)
+    kwargs = dict(
+        _env_file=None,
+        database_path=str(tmp_path / "groq.sqlite"),
+        livekit_url="wss://example.invalid",
+        livekit_api_key="test",
+        livekit_api_secret="x" * 32,
+        worker_secret="y" * 32,
+        rime_api_key="test-rime",
+        deepgram_api_key="test-stt",
+    )
+    monkeypatch.setenv("OPENAI_API_KEY", "fixture-unused")
+    assert Settings(**kwargs).missing() == ["GROQ_API_KEY"]
+    monkeypatch.delenv("OPENAI_API_KEY")
+    monkeypatch.setenv("GROQ_API_KEY", "fixture-groq")
+    app = create_app(Settings(**kwargs))
+    async with app.router.lifespan_context(app):
+        assert app.state.controller.interpreter is not None
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            health = (await client.get("/api/health")).json()
+            assert health["live_ready"] is True and health["missing_config"] == []
+
+
 async def test_scoped_tokens_and_live_controls_cannot_forge_playback(tmp_path):
     cfg = Settings(
         _env_file=None,
@@ -70,7 +97,7 @@ async def test_scoped_tokens_and_live_controls_cannot_forge_playback(tmp_path):
         worker_secret="y" * 32,
         rime_api_key="test-rime",
         deepgram_api_key="test-stt",
-        openai_api_key="test-llm",
+        groq_api_key="test-llm",
     )
     c = Controller(Database(cfg.database_path))
     await c.initialize()

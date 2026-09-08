@@ -1,6 +1,10 @@
 .PHONY: install seed api web worker test test-web test-browser check preflight preflight-live stress report
 PYTHON := .venv/bin/python
 
+# The python.org macOS build may not have a system CA bundle installed.
+# Use trusted roots while preserving an explicitly configured bundle.
+api worker preflight preflight-live: export SSL_CERT_FILE ?= $(shell $(PYTHON) -m certifi)
+
 install:
 	python3 -m venv .venv
 	$(PYTHON) -m pip install uv

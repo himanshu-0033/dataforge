@@ -20,7 +20,7 @@ Open the web URL, choose **Fixture**, and start a session. Type `Find six blue c
 
 ## Live voice setup
 
-Keep credentials in the ignored **`.env`** file on the API/worker host. In particular, put your Rime key in `RIME_API_KEY=...`; never in a frontend file or a `VITE_` variable. Configure `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`, `DEEPGRAM_API_KEY`, `OPENAI_API_KEY`, and a random `WORKER_SECRET` shared by the API and worker. Generate the latter with `python3 -c 'import secrets; print(secrets.token_urlsafe(32))'` and place it only in `.env`.
+Keep credentials in the server-side **`.env`** file on the API/worker host. In particular, put your Rime key in `RIME_API_KEY=...`; never in a frontend file or a `VITE_` variable. Configure `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`, `DEEPGRAM_API_KEY`, `GROQ_API_KEY`, and a random `WORKER_SECRET` shared by the API and worker. Generate the latter with `python3 -c 'import secrets; print(secrets.token_urlsafe(32))'` and place it only in `.env`.
 
 ```sh
 make preflight          # current catalog, pairing, secret scan; synthesize if Rime key exists
@@ -29,6 +29,10 @@ make worker             # terminal 3; keep running while using voice
 ```
 
 Restart the API after changing `.env`; it loads configuration at startup. Choose **Live voice** and grant microphone access. LiveKit must be configured and reachable; a hosted LiveKit project is the simplest service configuration. This project does not provision a LiveKit server or cloud accounts.
+
+The text model runs on **Groq**, using `GROQ_API_KEY` and `LLM_MODEL=openai/gpt-oss-120b`. The `openai/` prefix identifies the model, not the service receiving requests. The adapter pins Groq's endpoint and uses the existing compatible OpenAI client library; an OpenAI account/key is unnecessary. See [Groq compatibility](https://console.groq.com/docs/openai) and [model catalog](https://console.groq.com/docs/models). The installed LiveKit OpenAI plugin is unused by this path. Add your key locally, then restart `make api` and run `make preflight-live`.
+
+The API, worker and preflight Make targets use the installed `certifi` CA bundle when `SSL_CERT_FILE` is unset. This fixes the verified certificate-store issue with this macOS Python installation while retaining TLS verification; an explicitly configured bundle takes precedence.
 
 Use English and a headset for the first evaluation. Say `Find six blue cartons`, `Repeat the location`, `Wait make that four red cartons`, `I picked them`, and `Confirm four red cartons`. `Pause` retains the task and microphone so `Resume` works. `Cancel this pick` cancels only uncommitted work. A committed pick remains recorded; reversal and partial fulfillment are unsupported.
 
@@ -46,12 +50,12 @@ Use English and a headset for the first evaluation. Say `Find six blue cartons`,
 | LiveKit | Agents and Rime/Deepgram/Silero/OpenAI plugins `1.5.17`; Python RTC `1.1.8`; API `1.2.1` |
 | STT | Deepgram `nova-3`, English `en-US`, 16,000 Hz input integration; inventory keyterms |
 | VAD | LiveKit Silero, VAD endpointing/interruption through the installed SDK |
-| Text LLM | OpenAI `gpt-4.1-mini-2025-04-14`; SDK `3.8.0`; streamed structured tool arguments |
+| Text LLM | Groq `openai/gpt-oss-120b`; `https://api.groq.com/openai/v1`; compatible OpenAI SDK `3.8.0`; streamed structured tool arguments |
 | API / models | FastAPI `0.141.1`, Pydantic `2.13.5`, httpx `0.28.1` |
 | Frontend | React/TypeScript/Vite and official `livekit-client`; exact resolved versions in `web/package-lock.json` |
 | Storage | SQLite, WAL, migrations, transactional compare-and-decrement and unique task/operation receipts |
 
-Python dependencies are pinned transitively in `uv.lock`; JavaScript dependencies in `web/package-lock.json`. `docs/PROVIDERS.md` records inspected SDK APIs and provider behavior. Catalog compatibility has been verified; it does not prove synthesis or live voice performance.
+Python dependencies are pinned transitively in `uv.lock`; JavaScript dependencies in `web/package-lock.json`. `docs/PROVIDERS.md` records inspected SDK APIs and provider behavior. Catalog compatibility, two real Rime syntheses, and a read-only LiveKit credential check have been verified. Complete voice-session performance remains unverified.
 
 ## Verification and evidence
 

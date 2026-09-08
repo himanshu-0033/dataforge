@@ -1,6 +1,9 @@
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+GROQ_BASE_URL = "https://api.groq.com/openai/v1"
+DEFAULT_LLM_MODEL = "openai/gpt-oss-120b"
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
@@ -15,8 +18,8 @@ class Settings(BaseSettings):
     livekit_api_secret: str = Field(default="", repr=False)
     rime_api_key: str = Field(default="", repr=False)
     deepgram_api_key: str = Field(default="", repr=False)
-    openai_api_key: str = Field(default="", repr=False)
-    llm_model: str = "gpt-4.1-mini-2025-04-14"
+    groq_api_key: str = Field(default="", repr=False)
+    llm_model: str = DEFAULT_LLM_MODEL
     rime_model: str = "coda"
     rime_speaker: str = "astra"
     rime_language: str = "en"
@@ -30,7 +33,7 @@ class Settings(BaseSettings):
             "livekit_api_secret",
             "rime_api_key",
             "deepgram_api_key",
-            "openai_api_key",
+            "groq_api_key",
             "worker_secret",
         )
         return [name.upper() for name in names if not getattr(self, name)]

@@ -2,7 +2,7 @@
 
 Goal: a reproducible hands-free stockroom prototype with transaction-safe corrections.
 Spec: the supplied Rime_Codex_Build_Prompt.md; acceptance in ACCEPTANCE.md.
-Stack: React/TypeScript/Vite, FastAPI, LiveKit Agents with Rime/Deepgram/Silero, streaming OpenAI text interpretation, SQLite.
+Stack: React/TypeScript/Vite, FastAPI, LiveKit Agents with Rime/Deepgram/Silero, streaming Groq text interpretation, SQLite.
 
 The user authorizes routine decisions and continuous implementation. This empty workspace has no unrelated code or existing branch to isolate. Keep source here. The missing PDF is an external review gate, not invented competition evidence.
 
