@@ -1,0 +1,282 @@
+[
+  {
+    "sku": "CT-BLU",
+    "name": "blue cartons",
+    "aliases": [
+      "blue boxes"
+    ],
+    "attributes": {
+      "color": "blue",
+      "size": "standard"
+    },
+    "bin": "A-03",
+    "available": 40,
+    "inventory_version": 1
+  },
+  {
+    "sku": "CT-RED",
+    "name": "red cartons",
+    "aliases": [
+      "red boxes"
+    ],
+    "attributes": {
+      "color": "red",
+      "size": "standard"
+    },
+    "bin": "B-07",
+    "available": 32,
+    "inventory_version": 1
+  },
+  {
+    "sku": "CT-GRN",
+    "name": "green cartons",
+    "aliases": [
+      "green boxes"
+    ],
+    "attributes": {
+      "color": "green",
+      "size": "standard"
+    },
+    "bin": "A-04",
+    "available": 0,
+    "inventory_version": 1
+  },
+  {
+    "sku": "CT-YEL",
+    "name": "yellow cartons",
+    "aliases": [
+      "yellow boxes"
+    ],
+    "attributes": {
+      "color": "yellow",
+      "size": "standard"
+    },
+    "bin": "A-05",
+    "available": 2,
+    "inventory_version": 1
+  },
+  {
+    "sku": "CT-BLS",
+    "name": "small blue cartons",
+    "aliases": [
+      "small blue boxes"
+    ],
+    "attributes": {
+      "color": "blue",
+      "size": "small"
+    },
+    "bin": "A-02",
+    "available": 24,
+    "inventory_version": 1
+  },
+  {
+    "sku": "CT-RDL",
+    "name": "large red cartons",
+    "aliases": [
+      "large red boxes"
+    ],
+    "attributes": {
+      "color": "red",
+      "size": "large"
+    },
+    "bin": "B-08",
+    "available": 18,
+    "inventory_version": 1
+  },
+  {
+    "sku": "TP-CLR",
+    "name": "clear packing tape",
+    "aliases": [
+      "clear tape"
+    ],
+    "attributes": {
+      "color": "clear",
+      "size": "standard"
+    },
+    "bin": "C-01",
+    "available": 60,
+    "inventory_version": 1
+  },
+  {
+    "sku": "TP-BRN",
+    "name": "brown packing tape",
+    "aliases": [
+      "brown tape"
+    ],
+    "attributes": {
+      "color": "brown",
+      "size": "standard"
+    },
+    "bin": "C-02",
+    "available": 45,
+    "inventory_version": 1
+  },
+  {
+    "sku": "LB-WHT",
+    "name": "white shipping labels",
+    "aliases": [
+      "white labels"
+    ],
+    "attributes": {
+      "color": "white",
+      "size": "standard"
+    },
+    "bin": "C-03",
+    "available": 120,
+    "inventory_version": 1
+  },
+  {
+    "sku": "LB-FRG",
+    "name": "fragile labels",
+    "aliases": [
+      "fragile stickers"
+    ],
+    "attributes": {
+      "color": "red",
+      "size": "standard"
+    },
+    "bin": "C-04",
+    "available": 90,
+    "inventory_version": 1
+  },
+  {
+    "sku": "BG-SML",
+    "name": "small mailer bags",
+    "aliases": [
+      "small mailers"
+    ],
+    "attributes": {
+      "color": "white",
+      "size": "small"
+    },
+    "bin": "D-01",
+    "available": 75,
+    "inventory_version": 1
+  },
+  {
+    "sku": "BG-LRG",
+    "name": "large mailer bags",
+    "aliases": [
+      "large mailers"
+    ],
+    "attributes": {
+      "color": "white",
+      "size": "large"
+    },
+    "bin": "D-02",
+    "available": 55,
+    "inventory_version": 1
+  },
+  {
+    "sku": "WR-BBL",
+    "name": "bubble wrap rolls",
+    "aliases": [
+      "bubble wrap"
+    ],
+    "attributes": {
+      "color": "clear",
+      "size": "standard"
+    },
+    "bin": "D-03",
+    "available": 16,
+    "inventory_version": 1
+  },
+  {
+    "sku": "WR-STR",
+    "name": "stretch wrap rolls",
+    "aliases": [
+      "stretch wrap"
+    ],
+    "attributes": {
+      "color": "clear",
+      "size": "standard"
+    },
+    "bin": "D-04",
+    "available": 21,
+    "inventory_version": 1
+  },
+  {
+    "sku": "GL-SML",
+    "name": "small work gloves",
+    "aliases": [
+      "small gloves"
+    ],
+    "attributes": {
+      "color": "grey",
+      "size": "small"
+    },
+    "bin": "E-01",
+    "available": 30,
+    "inventory_version": 1
+  },
+  {
+    "sku": "GL-LRG",
+    "name": "large work gloves",
+    "aliases": [
+      "large gloves"
+    ],
+    "attributes": {
+      "color": "grey",
+      "size": "large"
+    },
+    "bin": "E-02",
+    "available": 28,
+    "inventory_version": 1
+  },
+  {
+    "sku": "BN-BLU",
+    "name": "blue storage bins",
+    "aliases": [
+      "blue bins"
+    ],
+    "attributes": {
+      "color": "blue",
+      "size": "standard"
+    },
+    "bin": "F-01",
+    "available": 12,
+    "inventory_version": 1
+  },
+  {
+    "sku": "BN-RED",
+    "name": "red storage bins",
+    "aliases": [
+      "red bins"
+    ],
+    "attributes": {
+      "color": "red",
+      "size": "standard"
+    },
+    "bin": "F-02",
+    "available": 10,
+    "inventory_version": 1
+  },
+  {
+    "sku": "EN-PAD",
+    "name": "padded envelopes",
+    "aliases": [
+      "padded mailers"
+    ],
+    "attributes": {
+      "color": "brown",
+      "size": "standard"
+    },
+    "bin": "F-03",
+    "available": 80,
+    "inventory_version": 1
+  },
+  {
+    "sku": "MK-BLK",
+    "name": "black marker pens",
+    "aliases": [
+      "black markers"
+    ],
+    "attributes": {
+      "color": "black",
+      "size": "standard"
+    },
+    "bin": "F-04",
+    "available": 36,
+    "inventory_version": 1
+  }
+]

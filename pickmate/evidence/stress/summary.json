@@ -1,0 +1,14 @@
+{
+  "utc": "2026-09-08T13:53:51.954942+00:00",
+  "mode": "fixture",
+  "count": 30,
+  "passed": 30,
+  "failed": 0,
+  "audio_trials": 0,
+  "physical_barge_in": "unverified",
+  "quantile_method": "nearest-rank; no audio samples",
+  "delayed_lookup_trials": [
+    1,
+    2
+  ]
+}
