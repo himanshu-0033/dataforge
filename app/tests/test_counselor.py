@@ -52,6 +52,25 @@ async def idle(store):
         await asyncio.gather(*list(store.jobs))
 
 
+async def test_voice_reconnect_preserves_healthy_worker(counselor, monkeypatch):
+    client, store, _ = counselor
+    seen = []
+
+    async def ensure(self, state, *, refresh=None):
+        assert refresh()["provider"]["status"] == "active"
+        seen.append(state)
+
+    monkeypatch.setattr("counselor.dispatch.Dispatcher.ensure", ensure)
+    route, auth = await begin(client, "live")
+    session = store.get(route.split("/")[-1])
+    session.provider["status"] = "active"
+    session.worker_seen = time.monotonic()
+    response = await client.post(route + "/token", headers=auth, json={"reconnect": True})
+    assert response.status_code == 200
+    assert seen[0]["provider"]["status"] == "active"
+    assert session.provider["status"] == "active"
+
+
 async def test_open_conversation_ownership_context_and_duplicate_inputs(counselor):
     client, store, brain = counselor
     route, auth = await begin(client)
@@ -187,15 +206,21 @@ async def test_end_clears_transcript_and_inactive_sessions_expire(counselor):
     assert (await client.get(route, headers=auth)).status_code == 404
 
 
-async def test_worker_timeout_updates_actual_state_so_typing_still_completes():
+async def test_worker_timeout_does_not_latch_and_typing_still_completes():
     store = Sessions(FakeConversation())
     session, _ = store.create("live")
     session.provider["status"] = "active"
     session.worker_seen = time.monotonic() - 16
+    assert store.snapshot(session)["provider"]["status"] == "reconnecting"
+    assert session.provider["status"] == "active"
+    session.worker_seen = time.monotonic() - 46
     assert store.snapshot(session)["provider"]["status"] == "disconnected"
+    assert session.provider["status"] == "active"
     store.turn(session, "I'll type instead", "fallback")
     await idle(store)
     assert session.messages[-1]["status"] == "completed"
+    session.worker_seen = time.monotonic()
+    assert store.snapshot(session)["provider"]["status"] == "active"
     await store.close()
 
 

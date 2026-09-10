@@ -14,7 +14,7 @@ class Dispatcher:
         self.locks = {}
         self.replacements = {}
 
-    async def ensure(self, session):
+    async def ensure(self, session, *, refresh=None):
         room = session["room"]
         async with self.locks.setdefault(room, asyncio.Lock()):
             async with asyncio.timeout(10):
@@ -37,6 +37,12 @@ class Dispatcher:
                         if not d.state.deleted_at
                         and (not d.state.jobs or any(not j.state.ended_at for j in d.state.jobs))
                     ]
+                    if refresh:
+                        # A worker can recover while the dispatch service is queried.
+                        # Recheck its current lease/heartbeat before replacing it.
+                        session = refresh()
+                        if session["ended"]:
+                            return
                     if alive:
                         replacement = self.replacements.get(room)
                         same_retry = (

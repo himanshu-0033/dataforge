@@ -10,7 +10,7 @@ CATALOG_URL = "https://users.rime.ai/data/voices/all-v2.json"
 @dataclass(frozen=True)
 class RimeConfig:
     model: str = "coda"
-    speaker: str = "astra"
+    speaker: str = "hesse"
     language: str = "en"
     sample_rate: int = 24000
     base_url: str = "wss://users-ws.rime.ai"
@@ -20,7 +20,7 @@ class RimeConfig:
     def from_env(cls):
         return cls(
             model=os.getenv("RIME_MODEL", "coda"),
-            speaker=os.getenv("RIME_SPEAKER", "astra"),
+            speaker=os.getenv("RIME_SPEAKER", "hesse"),
             language=os.getenv("RIME_LANGUAGE", "en"),
             sample_rate=int(os.getenv("RIME_SAMPLE_RATE", "24000")),
             base_url=os.getenv("RIME_BASE_URL", "wss://users-ws.rime.ai").rstrip("/"),

@@ -15,7 +15,7 @@ if (-not (Test-Path app/.env)) {
 }
 ```
 
-Fill in `app/.env` locally. For Vertex, set `COUNSELOR_PROVIDER=vertex` and `GOOGLE_CREDENTIALS_BASE64` to the encoded service account JSON, or use Application Default Credentials with `GOOGLE_CLOUD_PROJECT`. The configured Vertex model is `gemini-3.1-pro-preview` in `global`. To use Groq explicitly, set `COUNSELOR_PROVIDER=groq` and `GROQ_API_KEY`. Voice also needs the LiveKit, Deepgram, Rime, and worker credentials listed in the example. Local environment files are ignored by Git; `.env.example` contains placeholders only.
+Fill in `app/.env` locally. For Vertex, set `COUNSELOR_PROVIDER=vertex` and `GOOGLE_CREDENTIALS_BASE64` to the encoded service account JSON, or use Application Default Credentials with `GOOGLE_CLOUD_PROJECT`. Text defaults to `gemini-3.1-pro-preview`; the separately configurable voice profile uses `gemini-3-flash-preview` with minimal thinking for lower latency, both in `global`. To use Groq explicitly, set `COUNSELOR_PROVIDER=groq` and `GROQ_API_KEY`. Voice also needs the LiveKit, Deepgram, Rime, and worker credentials listed in the example. Local environment files are ignored by Git; `.env.example` contains placeholders only.
 
 ## Run
 

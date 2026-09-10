@@ -17,6 +17,10 @@ def connection_reply(history, mode):
     if mode != "live" or not history or history[-1]["role"] != "user":
         return None
     latest = words(history[-1]["content"])
+    if re.fullmatch(r"(?:hello|hey|hi)(?: (?:hello|hey|hi|yeah))*", latest):
+        return (
+            "I'm here. Go ahead." if len(history) > 2 else "Hi, I'm here. What would you like to talk about?"
+        )
     if re.fullmatch(
         r"(?:(?:hello|hey|hi) )?(?:can i )?(?:can|could|do) you (?:hear|listen) me(?: now)?",
         latest,

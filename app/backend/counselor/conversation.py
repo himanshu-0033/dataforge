@@ -5,6 +5,7 @@ from openai import AsyncOpenAI
 from .config import GROQ_BASE_URL
 from .context import build_messages
 from .dialogue import connection_reply
+from .latency import voice_reply
 from .vertex import VertexConversation
 
 
@@ -52,13 +53,33 @@ class Conversation:
             VertexConversation(settings) if self.provider == "vertex" else GroqConversation(settings)
         )
         self.model = self.backend.model
+        self.voice_retry_delay = settings.vertex_voice_retry_delay
+        self.voice_backend = (
+            VertexConversation(
+                settings.model_copy(
+                    update={
+                        "vertex_model": settings.vertex_voice_model,
+                        "vertex_thinking_level": settings.vertex_voice_thinking_level,
+                    }
+                )
+            )
+            if self.provider == "vertex"
+            else self.backend
+        )
 
-    async def reply(self, messages, *, support="explore", mode="text", focus="", on_delta=None):
+    async def reply(
+        self, messages, *, support="explore", mode="text", focus="", interrupted=None, on_delta=None
+    ):
         acknowledgement = connection_reply(messages, mode)
         if acknowledgement:
             return acknowledgement
-        context = build_messages(messages, support=support, mode=mode, focus=focus)
-        return await self.backend.reply(context, on_delta=on_delta)
+        context = build_messages(messages, support=support, mode=mode, focus=focus, interrupted=interrupted)
+        backend = self.voice_backend if mode == "live" else self.backend
+        if mode == "live" and self.provider == "vertex":
+            return await voice_reply(backend, context, on_delta=on_delta, retry_delay=self.voice_retry_delay)
+        return await backend.reply(context, on_delta=on_delta)
 
     async def close(self):
         await self.backend.close()
+        if self.voice_backend is not self.backend:
+            await self.voice_backend.close()

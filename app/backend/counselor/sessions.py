@@ -13,6 +13,7 @@ from fastapi import HTTPException
 
 from .config import ROOM_PREFIX
 from .dialogue import is_voice_fragment
+from .safety import SAFETY_REPLY, display_reply, explicit_crisis
 
 
 def utc():
@@ -42,7 +43,12 @@ class Session:
     support: str = "explore"
     focus: str = ""
     draft: str = ""
+    crisis_id: str | None = None
+    acknowledgement: str | None = None
+    interrupted_context: list[dict] = field(default_factory=list)
+    interruption_id: int = 0
     inputs: set = field(default_factory=set)
+    voice_events: dict = field(default_factory=dict)
     provider: dict = field(default_factory=lambda: {"name": "rime", "status": "awaiting_worker"})
     job: asyncio.Task | None = None
 
@@ -80,7 +86,8 @@ class Sessions:
         self.sessions[session.session_id] = session
         self.say(
             session,
-            "Hi, I'm Heard. I'm an AI here to listen. Take a moment to settle in; there's no rush to start.",
+            "Hi, I'm Heard, an AI here to listen, not a licensed medical professional. "
+            "Take your time. Where would you like to begin?",
         )
         return session, token
 
@@ -90,13 +97,34 @@ class Sessions:
         task.add_done_callback(self.jobs.discard)
         return task
 
-    def cancel(self, session):
+    def remember_interruption(self, session):
+        """Retain bounded background without promoting unspoken text to history."""
+        speech = session.speech
+        item = None
+        if speech and speech["status"] in ("queued", "playing"):
+            item = dict(
+                response_id=speech["response_id"], generated_text=speech["text"][:16_000], delivery="unknown"
+            )
+        elif session.resolving and session.draft:
+            item = dict(
+                response_id=f"draft-{session.response_epoch}",
+                generated_text=session.draft[:16_000],
+                delivery="not_spoken",
+            )
+        if item and not any(i["response_id"] == item["response_id"] for i in session.interrupted_context):
+            session.interrupted_context.append(item)
+            session.interrupted_context = session.interrupted_context[-3:]
+
+    def cancel(self, session, *, remember=False):
+        if remember:
+            self.remember_interruption(session)
         session.response_epoch += 1
         if session.job and not session.job.done():
             session.job.cancel()
         session.job = None
         session.resolving = False
         session.draft = ""
+        session.acknowledgement = None
         if session.speech and session.speech["status"] in ("queued", "playing"):
             session.speech["status"] = "interrupted"
             for message in session.messages:
@@ -111,7 +139,7 @@ class Sessions:
         use_audio = (
             session.mode == "live"
             and not session.paused
-            and session.provider["status"] not in ("failed", "disconnected")
+            and self.provider_snapshot(session)["status"] not in ("failed", "disconnected")
         )
         status = "queued" if use_audio else "completed"
         session.speech = dict(
@@ -139,7 +167,7 @@ class Sessions:
         if len(session.inputs) >= 1000:
             raise HTTPException(409, "Please start a new conversation to continue.")
         session.inputs.add(event_id)
-        self.cancel(session)
+        self.cancel(session, remember=True)
         session.user_speaking = False
         session.resume_query = False
         session.error = None
@@ -147,22 +175,53 @@ class Sessions:
         session.messages.append(dict(id=event_id, role="user", text=text, utc=utc(), status="completed"))
         session.messages = session.messages[-200:]
         session.awaiting_continuation = source == "voice" and is_voice_fragment(text)
+        if explicit_crisis(text):
+            session.crisis_id = event_id
+            session.awaiting_continuation = False
+            self.say(session, SAFETY_REPLY)
+            return
         if not session.awaiting_continuation:
             self.generate(session)
 
     def generate(self, session):
+        latest = next((m for m in reversed(session.messages) if m["role"] == "user"), None)
+        # Retry/resume paths must retain the immediate safety response even if
+        # the conversation provider is unavailable.
+        if latest and explicit_crisis(latest["text"]):
+            session.crisis_id = latest["id"]
+            self.say(session, SAFETY_REPLY)
+            return
         session.resolving = True
         session.draft = ""
+        session.acknowledgement = (
+            "I hear you." if latest and len(latest["text"].split()) >= 35 and not session.crisis_id else None
+        )
         session.revision += 1
         preferences = dict(support=session.support, mode=session.mode, focus=session.focus)
+        if session.interrupted_context:
+            preferences["interrupted"] = [dict(item) for item in session.interrupted_context]
         session.job = self.spawn(
             self._reply(session, session.response_epoch, self.history(session), preferences)
         )
 
     async def _reply(self, session, epoch, history, preferences):
+        streamed = ""
+        crisis_detected = False
+
+        def present(text):
+            nonlocal crisis_detected
+            visible, crisis = display_reply(text)
+            if crisis:
+                crisis_detected = True
+                session.crisis_id = next(m["id"] for m in reversed(session.messages) if m["role"] == "user")
+                session.acknowledgement = None
+            return visible
+
         def on_delta(text):
+            nonlocal streamed
             if not session.ended and epoch == session.response_epoch:
-                session.draft += text
+                streamed += text
+                session.draft = present(streamed)
                 session.revision += 1
 
         try:
@@ -172,14 +231,23 @@ class Sessions:
                 return
             session.resolving = False
             session.draft = ""
+            session.acknowledgement = None
             session.resume_query = False
-            self.say(session, reply)
+            visible = present(reply).strip()
+            if not visible and not crisis_detected:
+                raise ValueError("Empty conversation response")
+            self.say(session, visible or SAFETY_REPLY)
+            session.interrupted_context.clear()
         except asyncio.CancelledError:
             pass
         except Exception:
             if epoch == session.response_epoch and not session.ended:
                 session.resolving = False
                 session.draft = ""
+                session.acknowledgement = None
+                if crisis_detected:
+                    self.say(session, SAFETY_REPLY)
+                    return
                 session.error = "The reply couldn't be completed. Please retry your last message."
                 session.revision += 1
 
@@ -207,7 +275,8 @@ class Sessions:
         if session.ended or session.paused:
             return
         session.resume_query = session.resume_query or session.resolving
-        self.cancel(session)
+        self.cancel(session, remember=True)
+        session.interruption_id += 1
         session.user_speaking = True
 
     def false_interruption(self, session):
@@ -223,14 +292,28 @@ class Sessions:
         elif session.speech and session.speech["status"] == "interrupted":
             self.say(session, session.speech["text"])
 
-    def playback(self, session, rid, status):
-        if session.ended or not session.speech or session.speech["response_id"] != rid:
+    def playback(self, session, rid, status, played_text=None):
+        if session.ended:
+            return
+        # A delivery receipt can arrive after onset advanced the response epoch.
+        # It may refine background, never revive obsolete speech or its status.
+        if status == "interrupted" and played_text is not None:
+            for item in session.interrupted_context:
+                if item["response_id"] == rid:
+                    item.update(played_text=played_text[:16_000], delivery="playout_estimate")
+                    session.revision += 1
+        if not session.speech or session.speech["response_id"] != rid:
             return
         if session.speech["response_epoch"] != session.response_epoch:
             return
         old = session.speech["status"]
         if old in ("completed", "interrupted"):
             return
+        if status == "interrupted":
+            self.remember_interruption(session)
+            for item in session.interrupted_context:
+                if item["response_id"] == rid and played_text is not None:
+                    item.update(played_text=played_text[:16_000], delivery="playout_estimate")
         session.speech["status"] = status
         for message in session.messages:
             if message["id"] == rid:
@@ -243,6 +326,7 @@ class Sessions:
             session.ended = True
             session.messages.clear()
             session.inputs.clear()
+            session.voice_events.clear()
             session.focus = ""
             session.support = "explore"
             session.speech = None
@@ -250,6 +334,9 @@ class Sessions:
             session.resume_query = False
             session.user_speaking = False
             session.awaiting_continuation = False
+            session.crisis_id = None
+            session.interrupted_context.clear()
+            session.interruption_id = 0
             return
         if session.ended:
             raise HTTPException(409, "This conversation has ended.")
@@ -265,7 +352,8 @@ class Sessions:
                 session.resume_query = False
                 self.generate(session)
         elif action == "interrupt":
-            self.cancel(session)
+            self.cancel(session, remember=True)
+            session.interruption_id += 1
             session.resume_query = False
             session.user_speaking = False
         elif action == "repeat":
@@ -291,13 +379,30 @@ class Sessions:
                 self.say(session, text)
         session.revision += 1
 
-    def snapshot(self, session):
+    def provider_snapshot(self, session):
         provider = dict(session.provider)
         if session.mode == "live" and provider["status"] in ("connected", "active"):
-            if time.monotonic() - session.worker_seen > 15:
+            age = time.monotonic() - session.worker_seen
+            if age > 45:
                 provider["status"] = "disconnected"
-                session.provider["status"] = "disconnected"
-                session.revision += 1
+            elif age > 15:
+                provider["status"] = "reconnecting"
+        # A delayed heartbeat is an observation, not a permanent provider failure.
+        # The next authenticated worker heartbeat restores the normal view.
+        return provider
+
+    def snapshot(self, session):
+        provider = self.provider_snapshot(session)
+        status = "PAUSED"
+        if not session.ended and not session.paused:
+            if session.user_speaking:
+                status = "LISTENING"
+            elif session.speech and session.speech["status"] == "playing":
+                status = "SPEAKING"
+            elif session.resolving or (session.speech and session.speech["status"] == "queued"):
+                status = "PROCESSING"
+            elif session.mode == "live" and not session.awaiting_continuation:
+                status = "LISTENING"
         return dict(
             session_id=session.session_id,
             revision=session.revision,
@@ -308,6 +413,16 @@ class Sessions:
             resolving=session.resolving or session.user_speaking,
             thinking=session.resolving,
             draft=session.draft,
+            ui=dict(
+                status=status,
+                phase="PROCESSING_FUSED_CONTEXT"
+                if status == "PROCESSING" and session.interrupted_context
+                else status,
+                interruption_id=session.interruption_id,
+                overlay="CRISIS_MODE" if session.crisis_id else None,
+                crisis_id=session.crisis_id,
+                acknowledgement=session.acknowledgement,
+            ),
             support=session.support,
             focus=session.focus,
             user_speaking=session.user_speaking,

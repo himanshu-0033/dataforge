@@ -1,4 +1,5 @@
 export type Mode = 'live' | 'text';
+export type InterfaceStatus = 'LISTENING' | 'PROCESSING' | 'SPEAKING' | 'PAUSED';
 export type SupportStyle = 'listen' | 'explore' | 'steps';
 export type Message = { id: string; role: 'user' | 'assistant'; text: string; utc: string; status: string };
 export type Credential = { id: string; token: string };
@@ -7,6 +8,7 @@ export type Snapshot = {
   thinking: boolean; user_speaking: boolean; error: string | null;
   awaiting_continuation: boolean;
   support: SupportStyle; focus: string; draft: string;
+  ui: { status: InterfaceStatus; phase?: InterfaceStatus | 'PROCESSING_FUSED_CONTEXT'; interruption_id?: number; overlay: 'CRISIS_MODE' | null; crisis_id: string | null; acknowledgement: string | null };
   messages: Message[]; speech: { response_id: string; status: string; text: string } | null;
   provider: { status: string }; worker_epoch: number;
 };

@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 class Playback(BaseModel):
     response_id: str = Field(max_length=100)
     status: Literal["playing", "completed", "interrupted"]
+    played_text: str | None = Field(default=None, max_length=16_000)
 
 
 class Provider(BaseModel):

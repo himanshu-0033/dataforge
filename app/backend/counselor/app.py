@@ -38,6 +38,10 @@ class Preferences(BaseModel):
     focus: str | None = Field(default=None, max_length=600)
 
 
+class VoiceTokenRequest(BaseModel):
+    reconnect: bool = False
+
+
 def create_app(settings=None, sessions=None, dispatcher=None):
     cfg = settings or Settings()
     store = sessions or Sessions(Conversation(cfg) if not cfg.conversation_missing() else None)
@@ -98,6 +102,9 @@ def create_app(settings=None, sessions=None, dispatcher=None):
             conversation_ready=store.conversation is not None,
             conversation_provider=cfg.counselor_provider,
             conversation_model=cfg.vertex_model if cfg.counselor_provider == "vertex" else cfg.llm_model,
+            voice_conversation_model=cfg.vertex_voice_model
+            if cfg.counselor_provider == "vertex"
+            else cfg.llm_model,
             missing_config=cfg.missing(),
             transcript_retention="memory_only_until_end_or_one_hour_idle",
         )
@@ -138,12 +145,16 @@ def create_app(settings=None, sessions=None, dispatcher=None):
         return store.snapshot(session)
 
     @app.post("/api/sessions/{sid}/token")
-    async def token(sid: str, authorization: str | None = Header(default=None)):
+    async def token(
+        sid: str, body: VoiceTokenRequest | None = None, authorization: str | None = Header(default=None)
+    ):
         session = store.authorize(sid, authorization)
         if session.ended or session.mode != "live":
             raise HTTPException(409, "An active voice session is required.")
         try:
-            await dispatch.ensure(store.snapshot(session))
+            state = store.snapshot(session)
+            # Browser transport recovery must never force a healthy worker out.
+            await dispatch.ensure(state, refresh=lambda: store.snapshot(session))
         except Exception:
             raise HTTPException(503, "Voice couldn't connect. You can keep typing, or retry voice.") from None
         from livekit import api
@@ -165,6 +176,19 @@ def create_app(settings=None, sessions=None, dispatcher=None):
             .to_jwt()
         )
         return dict(url=cfg.livekit_url, token=jwt)
+
+    @app.post("/api/sessions/{sid}/voice/recover")
+    async def recover_voice(sid: str, authorization: str | None = Header(default=None)):
+        session = store.authorize(sid, authorization)
+        if session.ended or session.mode != "live":
+            raise HTTPException(409, "An active voice session is required.")
+        try:
+            await dispatch.ensure(store.snapshot(session), refresh=lambda: store.snapshot(session))
+        except Exception:
+            raise HTTPException(
+                503, "The voice service is recovering. Your conversation is still here."
+            ) from None
+        return store.snapshot(session)
 
     @app.get("/api/internal/sessions/{sid}/snapshot")
     async def internal_snapshot(sid: str, request: Request):
@@ -192,7 +216,15 @@ def create_app(settings=None, sessions=None, dispatcher=None):
 
     @app.post("/api/internal/sessions/{sid}/onset")
     async def onset(sid: str, request: Request):
-        store.onset(worker(sid, request))
+        session = worker(sid, request)
+        event_id = request.headers.get("x-voice-event")
+        if event_id:
+            if event_id in session.voice_events:
+                return {"accepted": True}
+            session.voice_events[event_id] = True
+            if len(session.voice_events) > 256:
+                session.voice_events.pop(next(iter(session.voice_events)))
+        store.onset(session)
         return {"accepted": True}
 
     @app.post("/api/internal/sessions/{sid}/false-interruption")
@@ -202,7 +234,7 @@ def create_app(settings=None, sessions=None, dispatcher=None):
 
     @app.post("/api/internal/sessions/{sid}/playback")
     async def playback(sid: str, body: Playback, request: Request):
-        store.playback(worker(sid, request), body.response_id, body.status)
+        store.playback(worker(sid, request), body.response_id, body.status, body.played_text)
         return {"accepted": True}
 
     @app.post("/api/internal/sessions/{sid}/provider")

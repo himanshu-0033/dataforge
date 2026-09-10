@@ -17,12 +17,13 @@ from counselor.config import Settings  # noqa: E402
 from counselor.conversation import Conversation  # noqa: E402
 
 
-async def evaluate(cases, output, model=None, thinking_level=None):
+async def evaluate(cases, output, model=None, thinking_level=None, mode=None):
     settings = Settings(_env_file=ROOT / ".env")
     if model:
-        settings = Settings(_env_file=ROOT / ".env", vertex_model=model)
+        settings = Settings(_env_file=ROOT / ".env", vertex_model=model, vertex_voice_model=model)
     if thinking_level:
         settings.vertex_thinking_level = thinking_level
+        settings.vertex_voice_thinking_level = thinking_level
     if settings.conversation_missing():
         print("Missing configuration: " + ", ".join(settings.conversation_missing()))
         return 1
@@ -50,7 +51,7 @@ async def evaluate(cases, output, model=None, thinking_level=None):
                             history,
                             support=case.get("support", "explore"),
                             focus=case.get("focus", ""),
-                            mode=case.get("mode", "text"),
+                            mode=mode or case.get("mode", "text"),
                             on_delta=delta,
                         )
                         dialogue.append({"user": history[-1]["content"], "reply": answer})
@@ -74,7 +75,8 @@ async def evaluate(cases, output, model=None, thinking_level=None):
         await conversation.close()
     record = {
         "provider": conversation.provider,
-        "model": conversation.model,
+        "model": conversation.voice_backend.model if mode == "live" else conversation.model,
+        "mode_override": mode,
         "created_at": datetime.now(timezone.utc).isoformat(),
         "synthetic_cases_only": True,
         "quality_is_not_automatically_scored": True,
@@ -95,7 +97,8 @@ def main():
     parser.add_argument(
         "--model", help="Evaluate a specific Vertex model without changing the app configuration"
     )
-    parser.add_argument("--thinking-level", choices=["LOW", "MEDIUM", "HIGH"])
+    parser.add_argument("--thinking-level", choices=["MINIMAL", "LOW", "MEDIUM", "HIGH"])
+    parser.add_argument("--mode", choices=["live", "text"], help="Override delivery mode for every case")
     parser.add_argument("--output", type=Path, default=ROOT / ".cache" / "conversation-evaluation.json")
     args = parser.parse_args()
     if args.limit < 1 or args.skip < 0:
@@ -108,7 +111,7 @@ def main():
     if not args.live:
         print(json.dumps(cases, indent=2, ensure_ascii=True))
         return 0
-    return asyncio.run(evaluate(cases, args.output, args.model, args.thinking_level))
+    return asyncio.run(evaluate(cases, args.output, args.model, args.thinking_level, args.mode))
 
 
 if __name__ == "__main__":

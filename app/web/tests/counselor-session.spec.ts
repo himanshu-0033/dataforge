@@ -87,3 +87,36 @@ test('unfinished text arrives before the completed reply', async ({ page }) => {
   await expect(page.getByRole('log')).not.toContainText('A reply is arriving');
   await page.getByRole('button', { name: 'End conversation' }).click();
 });
+
+test('crisis resources open immediately, remain dismissible, and clear on end', async ({ page }) => {
+  await start(page);
+  await send(page, 'I want to die');
+  const help = page.getByRole('dialog', { name: 'You deserve support right now.' });
+  await expect(help).toBeVisible();
+  await expect(help).toHaveAttribute('data-overlay', 'CRISIS_MODE');
+  await page.getByLabel('Find support where you are').selectOption('india');
+  await expect(page.getByRole('link', { name: 'Call 14416' })).toHaveAttribute('href', 'tel:14416');
+  await page.getByLabel('Find support where you are').selectOption('canada');
+  await expect(page.getByRole('link', { name: 'Text 988' })).toHaveAttribute('href', 'sms:988');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
+  await page.keyboard.press('Escape');
+  await expect(help).toBeHidden();
+  await expect(page.getByRole('log')).toContainText('Your safety matters.');
+  await page.getByRole('button', { name: 'Crisis help', exact: true }).click();
+  await expect(help).toBeVisible();
+  await page.getByRole('button', { name: 'Return to conversation' }).click();
+  await page.getByRole('button', { name: 'End conversation' }).click();
+  await expect(help).toBeHidden();
+});
+
+test('quiet space keeps the orb central and secondary preferences collapsed', async ({ page }, testInfo) => {
+  await start(page);
+  await page.getByRole('button', { name: 'Quiet view', exact: true }).click();
+  await expect(page.locator('.heard-presence')).toHaveAttribute('data-status', 'PAUSED');
+  await expect(page.getByRole('button', { name: 'Just listen', exact: true })).toBeHidden();
+  await expect(page.getByRole('button', { name: 'End conversation' })).toBeVisible();
+  await expect(page.getByRole('textbox', { name: 'Your message' })).toBeInViewport();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
+  await page.screenshot({ path: testInfo.outputPath('quiet-space.png'), fullPage: true });
+  await page.getByRole('button', { name: 'End conversation' }).click();
+});

@@ -28,7 +28,10 @@ class Settings(BaseSettings):
     google_cloud_project: str = Field(default="", pattern=r"^[a-z0-9-]*$")
     google_cloud_location: str = Field(default="global", pattern=r"^[a-z0-9-]+$")
     vertex_model: str = Field(default="gemini-3.1-pro-preview", pattern=r"^[a-zA-Z0-9._-]+$")
-    vertex_thinking_level: Literal["LOW", "MEDIUM", "HIGH"] = "MEDIUM"
+    vertex_thinking_level: Literal["MINIMAL", "LOW", "MEDIUM", "HIGH"] = "MEDIUM"
+    vertex_voice_model: str = Field(default="gemini-3-flash-preview", pattern=r"^[a-zA-Z0-9._-]+$")
+    vertex_voice_thinking_level: Literal["MINIMAL", "LOW", "MEDIUM", "HIGH"] = "MINIMAL"
+    vertex_voice_retry_delay: float = Field(default=3.5, ge=1, le=15)
 
     def service_account_info(self):
         value = self.google_credentials_base64.get_secret_value()

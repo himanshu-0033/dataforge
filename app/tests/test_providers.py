@@ -33,7 +33,7 @@ def test_worker_cli_reads_local_env_before_constructing_the_server(monkeypatch, 
 
 
 def test_catalog_checks_exact_model_language_voice_pairing():
-    catalog = {"coda": {"eng": ["astra"], "spa": ["other"]}, "mistv2": {"eng": ["only-mist"]}}
+    catalog = {"coda": {"eng": ["hesse"], "spa": ["other"]}, "mistv2": {"eng": ["only-mist"]}}
     assert validate_catalog(catalog, RimeConfig())["catalog_language"] == "eng"
     with pytest.raises(ValueError):
         validate_catalog(catalog, RimeConfig(speaker="only-mist"))
@@ -69,7 +69,7 @@ async def test_actual_plugin_builds_explicit_wire_configuration():
             k: query[k] for k in ("modelId", "speaker", "lang", "segment", "samplingRate", "audioFormat")
         } == {
             "modelId": ["coda"],
-            "speaker": ["astra"],
+            "speaker": ["hesse"],
             "lang": ["en"],
             "segment": ["bySentence"],
             "samplingRate": ["24000"],
@@ -150,13 +150,14 @@ async def test_late_playback_callback_retains_original_response_identity():
     bridge.current = "new-response"
     events = []
 
-    async def playback(response_id, status):
+    async def playback(response_id, status, played_text=None):
         events.append((response_id, status))
 
     bridge.playback = playback
 
     class Handle:
         interrupted = True
+        chat_items = []
 
         async def wait_for_playout(self):
             await asyncio.sleep(0)
